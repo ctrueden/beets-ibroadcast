@@ -47,7 +47,7 @@ setup(
 
     classifiers=[
         'Topic :: Multimedia :: Sound/Audio',
-        'License :: OSI Approved :: Unlicense',
+        'License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication',
         'Environment :: Console',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
