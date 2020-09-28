@@ -7,8 +7,8 @@ import logging
 import re
 import requests
 
-__version__ = '0.1.0.dev'
-__client__ = 'beets-ibroadcast'
+from beetsplug.ibroadcast.about import __version__ as _version
+from beetsplug.ibroadcast.about import __PACKAGE_NAME__ as _client
 
 def calcmd5(filePath="."):
     with open(filePath, 'rb') as fh:
@@ -105,7 +105,7 @@ class iBroadcast(object):
     def __init__(self, username, password, log=None):
         self.username = username
         self.password = password
-        self._log = log if log else logging.getLogger(__client__)
+        self._log = log if log else logging.getLogger(_client)
         self._login(username, password)
 
     def _login(self, username, password):
@@ -128,8 +128,8 @@ class iBroadcast(object):
                 'mode': 'status',
                 'email_address': username,
                 'password': password,
-                'version': __version__,
-                'client': __client__,
+                'version': _version,
+                'client': _client,
                 'supported_types': 1,
             }),
             headers={'Content-Type': 'application/json'}
@@ -170,8 +170,8 @@ class iBroadcast(object):
             data=json.dumps({
                 '_token': self.token(),
                 '_userid': self.user_id(),
-                'client': __client__,
-                'version': __version__,
+                'client': _client,
+                'version': _version,
                 'mode': 'library',
                 'supported_types': False,
                 'url': '//library.ibroadcast.com',
@@ -209,6 +209,8 @@ class iBroadcast(object):
         """
         Upload the given file to iBroadcast, if it isn't there already.
         """
+        self._log.info(f'Version = {_version}')
+        return
         if self.isuploaded(filename):
             self._log.info(f'Skipping - already uploaded: {filename}')
             return False
@@ -221,10 +223,10 @@ class iBroadcast(object):
                 data={
                     'user_id': self.user_id(),
                     'token': self.token(),
-                    'client': __client__,
-                    'version': __version__,
+                    'client': _client,
+                    'version': _version,
                     'file_path': filename,
-                    'method': __client__,
+                    'method': _client,
                 },
                 files={'file': upload_file},
             ))
@@ -245,8 +247,8 @@ class iBroadcast(object):
             data=json.dumps({
                 '_token': self.token(),
                 '_userid': self.user_id(),
-                'client': __client__,
-                'version': __version__,
+                'client': _client,
+                'version': _version,
                 'mode': 'createtag',
                 'supported_types': False,
                 'tagname': tagname,
@@ -269,8 +271,8 @@ class iBroadcast(object):
             data=json.dumps({
                 '_token': self.token(),
                 '_userid': self.user_id(),
-                'client': __client__,
-                'version': __version__,
+                'client': _client,
+                'version': _version,
                 'mode': 'tagtracks',
                 'supported_types': False,
                 'tagid': tagid,
@@ -292,8 +294,8 @@ class iBroadcast(object):
             data=json.dumps({
                 '_token': self.token(),
                 '_userid': self.user_id(),
-                'client': __client__,
-                'version': __version__,
+                'client': _client,
+                'version': _version,
                 'mode': 'trash',
                 'supported_types': False,
                 'tracks': trackids,
