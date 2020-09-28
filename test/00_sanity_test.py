@@ -1,6 +1,5 @@
-#  Copyright: Copyright (c) 2020., Curtis Rueden
-#  Author: Curtis Rueden <ctrueden@gmail.com>
-#  License: See LICENSE.txt
+# This is free and unencumbered software released into the public domain.
+# See https://unlicense.org/ for details.
 
 from beetsplug.ibroadcast import about
 from test.helper import TestHelper, Assertions, \
