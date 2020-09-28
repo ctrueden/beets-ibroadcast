@@ -19,4 +19,4 @@ class IBroadcastPlugin(BeetsPlugin):
         self.config.add(source)
 
     def commands(self):
-        return [IBroadcastCommand(self.config)]
+        return [IBroadcastCommand(self)]

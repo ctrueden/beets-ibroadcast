@@ -1,23 +1,33 @@
 # This is free and unencumbered software released into the public domain.
 # See https://unlicense.org/ for details.
 
+from math import ceil
+from time import time
 from optparse import OptionParser
 
 from beets.library import Library
+from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, decargs
-from beets.util.confit import Subview
 
-from beetsplug.ibroadcast import common
+from beetsplug.ibroadcast import common, ibroadcast
+
+
+def _safeint(v, otherwise):
+    try:
+        return int(v)
+    except ValueError:
+        return otherwise
 
 
 class IBroadcastCommand(Subcommand):
-    config: Subview = None
+    plugin: BeetsPlugin = None
     lib: Library = None
     query = None
     parser: OptionParser = None
+    ib = None
 
-    def __init__(self, cfg):
-        self.config = cfg
+    def __init__(self, plugin):
+        self.plugin = plugin
 
         self.parser = OptionParser(
             usage='beet {plg} [options] [QUERY...]'.format(
@@ -38,18 +48,32 @@ class IBroadcastCommand(Subcommand):
             help=common.plg_ns['__PLUGIN_SHORT_DESCRIPTION__']
         )
 
-    def func(self, lib: Library, options, arguments):
-        self.lib = lib
-        self.query = decargs(arguments)
+    def func(self, lib: Library, opts, args):
+        query = decargs(args)
 
-        if options.version:
+        if opts.version:
             self.show_version_information()
             return
 
-        self.handle_main_task()
+        for item in lib.items(query):
+            self.upload(item)
 
-    def handle_main_task(self):
-        self._say("Your journey starts here...", log_only=False)
+    def upload(self, item):
+        if self.ib is None:
+            self.plugin._log.debug('Connecting to iBroadcast')
+            username = self.plugin.config['username'].get()
+            password = self.plugin.config['password'].get()
+            self.ib = ibroadcast.iBroadcast(username, password, self.plugin._log)
+
+        self.plugin._log.debug(f'Deciding whether to upload {item}')
+        if self._needs_upload(item):
+            old_trackid = self._trackid(item)
+            new_trackid = self.ib.upload(item.path)
+            if old_trackid:
+                self.plugin._log.debug(f'Trashing previous track ID: {old_trackid}')
+                self.ib.trash([old_trackid])
+            self._update(item, new_trackid)
+        self.plugin._log.debug(f'Upload complete: {item}')
 
     def show_version_information(self):
         self._say("{pt}({pn}) plugin for Beets: v{ver}".format(
@@ -58,6 +82,25 @@ class IBroadcastCommand(Subcommand):
             ver=common.plg_ns['__version__']
         ), log_only=False)
 
+    def _needs_upload(self, item):
+        utime = self._uploadtime(item)
+        self.plugin._log.debug(f'{item.mtime} > {utime}? {item.mtime > utime}')
+        return item.mtime > _safeint(utime, -1)
+
     @staticmethod
     def _say(msg, log_only=True, is_error=False):
         common.say(msg, log_only, is_error)
+
+    @staticmethod
+    def _trackid(item):
+        return item.ib_trackid if hasattr(item, 'ib_trackid') else None
+
+    @staticmethod
+    def _uploadtime(item):
+        return int(item.ib_uploadtime) if hasattr(item, 'ib_uploadtime') else -1
+
+    @staticmethod
+    def _update(item, trackid):
+        item.ib_trackid = 0 if not trackid else trackid
+        item.ib_uploadtime = ceil(time())
+        item.store()

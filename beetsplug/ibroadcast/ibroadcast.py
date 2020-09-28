@@ -4,6 +4,7 @@
 import hashlib
 import json
 import logging
+import re
 import requests
 
 __version__ = '0.1.0.dev'
@@ -18,17 +19,6 @@ def calcmd5(filePath="."):
                 break
             m.update(data)
     return m.hexdigest()
-
-def _json(response):
-    if not response.ok:
-        raise ServerError('Server returned bad status: ',
-                         response.status_code)
-    json = response.json()
-    if 'message' in json:
-        logging.info(json['message'])
-    if json['result'] is False:
-        raise ValueError('Operation failed.')
-    return json
 
 def _decode(data):
     """
@@ -112,9 +102,10 @@ class iBroadcast(object):
     Adapted from ibroadcast-uploader.py at <https://project.ibroadcast.com/>.
     """
 
-    def __init__(self, username, password):
+    def __init__(self, username, password, log=None):
         self.username = username
         self.password = password
+        self._log = log if log else logging.getLogger(__client__)
         self._login(username, password)
 
     def _login(self, username, password):
@@ -130,8 +121,8 @@ class iBroadcast(object):
         self.password = password
 
         # Log in.
-        logging.info(f'Logging in as {username}...')
-        self.status = _json(requests.post(
+        self._log.info(f'Logging in as {username}...')
+        self.status = self._json(requests.post(
             "https://api.ibroadcast.com/s/JSON/status",
             data=json.dumps({
                 'mode': 'status',
@@ -146,24 +137,35 @@ class iBroadcast(object):
         if 'user' not in self.status:
             raise ValueError('Invalid login.')
 
-        logging.info(f'Login successful - user_id: {self.user_id()}')
+        self._log.info(f'Login successful - user_id: {self.user_id()}')
         self.refresh()
+
+    def _json(self, response):
+        if not response.ok:
+            raise ServerError('Server returned bad status: ',
+                             response.status_code)
+        json = response.json()
+        if 'message' in json:
+            self._log.info(json['message'])
+        if json['result'] is False:
+            raise ValueError('Operation failed.')
+        return json
 
     def refresh(self):
         """
         Download library data: albums, artists, MD5 checksums, etc.
         """
 
-        logging.info('Downloading MD5 checksums...')
-        self.state = _json(requests.post(
+        self._log.info('Downloading MD5 checksums...')
+        self.state = self._json(requests.post(
             "https://sync.ibroadcast.com",
             data=f'user_id={self.user_id()}&token={self.token()}',
             headers={'Content-Type': 'application/x-www-form-urlencoded'},
         ))
         self.md5 = set(self.state['md5'])
 
-        logging.info('Downloading library data...')
-        self.library = _json(requests.post(
+        self._log.info('Downloading library data...')
+        self.library = self._json(requests.post(
             "https://library.ibroadcast.com",
             data=json.dumps({
                 '_token': self.token(),
@@ -208,24 +210,28 @@ class iBroadcast(object):
         Upload the given file to iBroadcast, if it isn't there already.
         """
         if self.isuploaded(filename):
-            logging.info(f'Skipping - already uploaded: {filename}')
+            self._log.info(f'Skipping - already uploaded: {filename}')
             return False
 
-        logging.info(f'Uploading {filename}')
+        self._log.info(f'Uploading {filename}')
 
         with open(filename, 'rb') as upload_file:
-            _json(requests.post(
-                "https://sync.ibroadcast.com",
+            json = self._json(requests.post(
+                "https://upload.ibroadcast.com",
                 data={
-                    'user_id': self.user_id,
-                    'token': self.token,
+                    'user_id': self.user_id(),
+                    'token': self.token(),
+                    'client': __client__,
+                    'version': __version__,
                     'file_path': filename,
                     'method': __client__,
                 },
                 files={'file': upload_file},
             ))
-
-        return True
+            # The Track ID is embedded in result message; extract it.
+            message = json['message'] if 'message' in json else ''
+            match = re.match('.*\((.*)\) uploaded successfully.*', message)
+            return None if match is None else match.group(1)
 
     def createtag(self, tagname):
         """
@@ -234,7 +240,7 @@ class iBroadcast(object):
         Returns:
             ID of newly created tag.
         """
-        json = _json(requests.post(
+        json = self._json(requests.post(
             "https://api.ibroadcast.com/s/JSON/createtag",
             data=json.dumps({
                 '_token': self.token(),
@@ -258,7 +264,7 @@ class iBroadcast(object):
         :param trackids: List of IDs for the tracks to tag.
         :param untag: If true, remove the tag rather than applying it.
         """
-        _json(requests.post(
+        self._json(requests.post(
             "https://api.ibroadcast.com/s/JSON/tagtracks",
             data=json.dumps({
                 '_token': self.token(),
@@ -281,7 +287,7 @@ class iBroadcast(object):
 
         :param trackids: List of IDs for the tracks to tag.
         """
-        _json(requests.post(
+        self._json(requests.post(
             "https://api.ibroadcast.com/s/JSON/tagtracks",
             data=json.dumps({
                 '_token': self.token(),
