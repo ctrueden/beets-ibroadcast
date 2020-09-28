@@ -131,7 +131,7 @@ class TestHelper(TestCase, Assertions):
 
     def reset_beets(self, config_file: bytes):
         self.teardown_beets()
-        plugins._classes = {ibroadcast.TemplatePlugin}
+        plugins._classes = {ibroadcast.IBroadcastPlugin}
         self._setup_beets(config_file)
 
     def _setup_beets(self, config_file: bytes):
