@@ -38,6 +38,7 @@ setup(
 
     install_requires=[
         'beets>=1.4.9',
+        'requests>=2.24.0',
     ],
 
     tests_require=[
