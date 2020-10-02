@@ -10,8 +10,8 @@ import requests
 from beetsplug.ibroadcast.about import __version__ as _version
 from beetsplug.ibroadcast.about import __PACKAGE_NAME__ as _client
 
-def calcmd5(filePath):
-    with open(filePath, 'rb') as fh:
+def calcmd5(filepath):
+    with open(filepath, 'rb') as fh:
         return hashlib.md5(fh.read()).hexdigest()
 
 def _decode(data):
@@ -196,20 +196,20 @@ class iBroadcast(object):
         """
         return [ft['extension'] for ft in self.status['supported']]
 
-    def isuploaded(self, filename):
-        return calcmd5(filename) in self.md5
+    def isuploaded(self, filepath):
+        return calcmd5(filepath) in self.md5
 
-    def upload(self, filename):
+    def upload(self, filepath):
         """
         Upload the given file to iBroadcast, if it isn't there already.
         """
-        if self.isuploaded(filename):
-            self._log.info(f'Skipping - already uploaded: {filename}')
+        if self.isuploaded(filepath):
+            self._log.info(f'Skipping - already uploaded: {filepath}')
             return False
 
-        self._log.info(f'Uploading {filename}')
+        self._log.info(f'Uploading {filepath}')
 
-        with open(filename, 'rb') as upload_file:
+        with open(filepath, 'rb') as upload_file:
             json = self._json(requests.post(
                 "https://upload.ibroadcast.com",
                 data={
@@ -217,7 +217,7 @@ class iBroadcast(object):
                     'token': self.token(),
                     'client': _client,
                     'version': _version,
-                    'file_path': filename,
+                    'file_path': filepath,
                     'method': _client,
                 },
                 files={'file': upload_file},
