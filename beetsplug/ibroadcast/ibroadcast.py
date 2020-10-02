@@ -10,15 +10,9 @@ import requests
 from beetsplug.ibroadcast.about import __version__ as _version
 from beetsplug.ibroadcast.about import __PACKAGE_NAME__ as _client
 
-def calcmd5(filePath="."):
+def calcmd5(filePath):
     with open(filePath, 'rb') as fh:
-        m = hashlib.md5()
-        while True:
-            data = fh.read(8192)
-            if not data:
-                break
-            m.update(data)
-    return m.hexdigest()
+        return hashlib.md5(fh.read()).hexdigest()
 
 def _decode(data):
     """
