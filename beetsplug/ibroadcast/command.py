@@ -8,6 +8,7 @@ from optparse import OptionParser
 from beets.library import Library
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, decargs
+from beets.util import syspath, displayable_path
 
 from beetsplug.ibroadcast import common, ibroadcast
 
@@ -68,7 +69,7 @@ class IBroadcastCommand(Subcommand):
         self.plugin._log.debug(f'Deciding whether to upload {item}')
         if self._needs_upload(item):
             old_trackid = self._trackid(item)
-            new_trackid = self.ib.upload(item.path)
+            new_trackid = self.ib.upload(syspath(item.path), displayable_path(item.path))
             if old_trackid:
                 self.plugin._log.debug(f'Trashing previous track ID: {old_trackid}')
                 self.ib.trash([old_trackid])

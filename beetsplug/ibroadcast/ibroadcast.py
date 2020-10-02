@@ -199,15 +199,23 @@ class iBroadcast(object):
     def isuploaded(self, filepath):
         return calcmd5(filepath) in self.md5
 
-    def upload(self, filepath):
+    def upload(self, filepath, label=None):
         """
         Upload the given file to iBroadcast, if it isn't there already.
+
+        :param filepath: Path to the file for upload.
+        :param label: Human-readable file string (e.g., without problematic
+                      special characters) to use when logging messages about
+                      this operation, or None to use the file path directly.
+        :return: Track ID of the uploaded file, or None if no upload occurred.
         """
+        if label is None:
+            label = filepath
         if self.isuploaded(filepath):
-            self._log.info(f'Skipping - already uploaded: {filepath}')
+            self._log.info(f'Skipping - already uploaded: {label}')
             return False
 
-        self._log.info(f'Uploading {filepath}')
+        self._log.info(f'Uploading {label}')
 
         with open(filepath, 'rb') as upload_file:
             json = self._json(requests.post(
