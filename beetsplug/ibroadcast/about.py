@@ -6,7 +6,7 @@ __email__ = u'ctrueden@gmail.com'
 __copyright__ = u'Public domain'
 __license__ = u'License :: OSI Approved :: Unlicense'
 
-__version__ = u'0.2.0.dev0'
+__version__ = u'0.2.0'
 __status__ = u'Kickstarted'
 
 __PACKAGE_TITLE__ = u'iBroadcast'
