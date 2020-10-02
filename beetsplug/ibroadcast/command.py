@@ -41,6 +41,12 @@ class IBroadcastCommand(Subcommand):
             help=u'show plugin version'
         )
 
+        self.parser.add_option(
+            '-p', '--pretend',
+            action='store_true', dest='pretend', default=False,
+            help=u'report which files would be uploaded, but don\'t upload anything'
+        )
+
         super(IBroadcastCommand, self).__init__(
             parser=self.parser,
             name=common.plg_ns['__PLUGIN_NAME__'],
@@ -56,8 +62,22 @@ class IBroadcastCommand(Subcommand):
             self.show_version_information()
             return
 
-        for item in lib.items(query):
-            self.upload(item)
+        if opts.pretend:
+            for item in lib.items(query):
+                self.pretend(item)
+        else:
+            for item in lib.items(query):
+                self.upload(item)
+
+    def pretend(self, item):
+        if self._needs_upload(item):
+            old_trackid = self._trackid(item)
+            if old_trackid:
+                self.plugin._log.info(f'Would re-upload: {item}')
+            else:
+                self.plugin._log.info(f'Would upload: {item}')
+        else:
+            self.plugin._log.info(f'Already uploaded: {item}')
 
     def upload(self, item):
         if self.ib is None:
