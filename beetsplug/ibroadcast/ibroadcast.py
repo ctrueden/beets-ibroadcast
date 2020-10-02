@@ -203,8 +203,6 @@ class iBroadcast(object):
         """
         Upload the given file to iBroadcast, if it isn't there already.
         """
-        self._log.info(f'Version = {_version}')
-        return
         if self.isuploaded(filename):
             self._log.info(f'Skipping - already uploaded: {filename}')
             return False
