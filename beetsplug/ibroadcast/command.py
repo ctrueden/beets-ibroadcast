@@ -70,10 +70,13 @@ class IBroadcastCommand(Subcommand):
         if self._needs_upload(item):
             old_trackid = self._trackid(item)
             new_trackid = self.ib.upload(syspath(item.path), displayable_path(item.path))
-            if old_trackid:
-                self.plugin._log.debug(f'Trashing previous track ID: {old_trackid}')
-                self.ib.trash([old_trackid])
-            self._update(item, new_trackid)
+            if new_trackid:
+                if old_trackid:
+                    self.plugin._log.debug(f'Trashing previous track ID: {old_trackid}')
+                    self.ib.trash([old_trackid])
+                self._update(item, new_trackid)
+            else:
+                self.plugin._log.warn(f'Not uploaded: {item}')
         self.plugin._log.debug(f'Upload complete: {item}')
 
     def show_version_information(self):
