@@ -235,6 +235,14 @@ class iBroadcast(object):
             match = re.match('.*\((.*)\) uploaded successfully.*', message)
             return None if match is None else match.group(1)
 
+    def istagged(self, tagid, trackid):
+        if not tagid in self.tags:
+            return False
+        return trackid in self.tags[tagid]
+
+    def gettags(self, trackid):
+        return [tagid for tagid, tag in self.tags.items() if int(trackid) in tag['tracks']]
+
     def createtag(self, tagname):
         """
         Create a tag.
