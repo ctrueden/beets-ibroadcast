@@ -239,8 +239,7 @@ class iBroadcast(object):
         """
         Create a tag.
 
-        Returns:
-            ID of newly created tag.
+        :return: ID of newly created tag.
         """
         json = self._json(requests.post(
             "https://api.ibroadcast.com/s/JSON/createtag",
