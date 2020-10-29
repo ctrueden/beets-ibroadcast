@@ -1,6 +1,7 @@
 # This is free and unencumbered software released into the public domain.
 # See https://unlicense.org/ for details.
 
+import logging
 from math import ceil
 from time import time
 from optparse import OptionParser
@@ -83,7 +84,6 @@ class IBroadcastCommand(Subcommand):
         if self.ib is None:
             self._connect()
 
-        self.plugin._log.debug(f'Deciding whether to upload {item}')
         trackid = self._trackid(item)
         if self._needs_upload(item):
             new_trackid = self.ib.upload(syspath(item.path), displayable_path(item.path))
@@ -93,9 +93,9 @@ class IBroadcastCommand(Subcommand):
                     self.ib.trash([trackid])
                 self._update(item, new_trackid)
                 trackid = new_trackid
+                self.plugin._log.debug(f'Upload complete: {item}')
             else:
                 self.plugin._log.warn(f'Not uploaded: {item}')
-        self.plugin._log.debug(f'Upload complete: {item}')
 
     def show_version_information(self):
         self._say("{pt}({pn}) plugin for Beets: v{ver}".format(
@@ -106,8 +106,11 @@ class IBroadcastCommand(Subcommand):
 
     def _needs_upload(self, item):
         utime = self._uploadtime(item)
-        self.plugin._log.debug(f'{item.mtime} > {utime}? {item.mtime > utime}')
-        return item.mtime > _safeint(utime, -1)
+        needs_upload = item.mtime > _safeint(utime, -1)
+        if self.plugin._log.isEnabledFor(logging.DEBUG):
+            msg = 'Needs upload' if needs_upload else 'Already uploaded'
+            self.plugin._log.debug(f'{msg}: {item} [mtime={item.mtime}; utime={utime}]')
+        return needs_upload
 
     def _connect(self):
         self.plugin._log.debug('Connecting to iBroadcast')
