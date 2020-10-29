@@ -81,10 +81,7 @@ class IBroadcastCommand(Subcommand):
 
     def upload(self, item):
         if self.ib is None:
-            self.plugin._log.debug('Connecting to iBroadcast')
-            username = self.plugin.config['username'].get()
-            password = self.plugin.config['password'].get()
-            self.ib = ibroadcast.iBroadcast(username, password, self.plugin._log)
+            self._connect()
 
         self.plugin._log.debug(f'Deciding whether to upload {item}')
         if self._needs_upload(item):
@@ -110,6 +107,12 @@ class IBroadcastCommand(Subcommand):
         utime = self._uploadtime(item)
         self.plugin._log.debug(f'{item.mtime} > {utime}? {item.mtime > utime}')
         return item.mtime > _safeint(utime, -1)
+
+    def _connect(self):
+        self.plugin._log.debug('Connecting to iBroadcast')
+        username = self.plugin.config['username'].get()
+        password = self.plugin.config['password'].get()
+        self.ib = ibroadcast.iBroadcast(username, password, self.plugin._log)
 
     @staticmethod
     def _say(msg, log_only=True, is_error=False):
