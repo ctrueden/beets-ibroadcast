@@ -27,6 +27,7 @@ class IBroadcastCommand(Subcommand):
     query = None
     parser: OptionParser = None
     ib = None
+    tags = None
 
     def __init__(self, plugin):
         self.plugin = plugin
@@ -97,6 +98,9 @@ class IBroadcastCommand(Subcommand):
             else:
                 self.plugin._log.warn(f'Not uploaded: {item}')
 
+        if trackid:
+            self._sync_tags(trackid, item)
+
     def show_version_information(self):
         self._say("{pt}({pn}) plugin for Beets: v{ver}".format(
             pt=common.plg_ns['__PACKAGE_TITLE__'],
@@ -118,6 +122,46 @@ class IBroadcastCommand(Subcommand):
         password = self.plugin.config['password'].get()
         self.ib = ibroadcast.iBroadcast(username, password, self.plugin._log)
 
+        # Reorganize the tags to be keyed on name rather than ID.
+        # This helps to achieve harmony with the usertags plugin.
+        self.tags = {}
+        for tagid, tag in self.ib.tags.items():
+            tagcopy = tag.copy()
+            tagname = tagcopy.pop('name')
+            tagcopy['id'] = tagid
+            if tagname in self.tags:
+                self.plugin._log.warn(f"Ignoring duplicate tag '{tagname}' with ID {tagid}")
+            self.tags[tagname] = tagcopy
+
+    def _sync_tags(self, trackid, item):
+        remote_tagids = self.ib.gettags(trackid)
+        local_tagnames = self._tags(item)
+        if local_tagnames is None:
+            # NB: A usertags attribute is not present; skip this item.
+            return
+
+        self.plugin._log.info(f'Syncing tags for {item}')
+
+        # Add new local tags.
+        for tagname in local_tagnames:
+            if tagname in self.tags:
+                # Existing remote tag.
+                tagid = self.tags[tagname]['id']
+            else:
+                # New remote tag -- create it.
+                tagid = self.ib.createtag(tagname)
+                self.tags[tagname] = {'id': tagid}
+            if not tagid in remote_tagids:
+                self.plugin._log.info(f"--> Adding tag '{tagname}' [{tagid}]")
+                self.ib.tagtracks(tagid, [trackid])
+
+        # Remove stale remote tags.
+        for tagid in remote_tagids:
+            tagname = self.ib.tags[tagid]['name']
+            if not tagname in local_tagnames:
+                self.plugin._log.info(f"--> Removing tag '{tagname}' [{tagid}]")
+                self.ib.tagtracks(tagid, [trackid], untag=True)
+
     @staticmethod
     def _say(msg, log_only=True, is_error=False):
         common.say(msg, log_only, is_error)
@@ -125,6 +169,10 @@ class IBroadcastCommand(Subcommand):
     @staticmethod
     def _trackid(item):
         return item.ib_trackid if hasattr(item, 'ib_trackid') else None
+
+    @staticmethod
+    def _tags(item):
+        return item.usertags.split('|') if hasattr(item, 'usertags') else None
 
     @staticmethod
     def _uploadtime(item):
