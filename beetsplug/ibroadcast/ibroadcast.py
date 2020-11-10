@@ -242,6 +242,11 @@ class iBroadcast(object):
         return trackid in self.tags[tagid]
 
     def gettags(self, trackid):
+        """
+        Gets the tags for the given track.
+        :param trackid: ID of the track in question.
+        :return: List of tag IDs.
+        """
         return [tagid for tagid, tag in self.tags.items() if int(trackid) in tag['tracks']]
 
     def createtag(self, tagname):
