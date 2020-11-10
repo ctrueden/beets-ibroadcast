@@ -44,6 +44,12 @@ class IBroadcastCommand(Subcommand):
         )
 
         self.parser.add_option(
+            '-f', '--force',
+            action='store_true', dest='force', default=False,
+            help=u'uploads all matched files, even if they were already uploaded'
+        )
+
+        self.parser.add_option(
             '-p', '--pretend',
             action='store_true', dest='pretend', default=False,
             help=u'report which files would be uploaded, but don\'t upload anything'
@@ -66,12 +72,12 @@ class IBroadcastCommand(Subcommand):
 
         if opts.pretend:
             for item in lib.items(query):
-                self.pretend(item)
+                self.pretend(item, force=opts.force)
         else:
             for item in lib.items(query):
-                self.upload(item)
+                self.upload(item, force=opts.force)
 
-    def pretend(self, item):
+    def pretend(self, item, force=False):
         if self._needs_upload(item):
             old_trackid = self._trackid(item)
             if old_trackid:
@@ -79,15 +85,20 @@ class IBroadcastCommand(Subcommand):
             else:
                 self.plugin._log.info(f'Would upload: {item}')
         else:
-            self.plugin._log.info(f'Already uploaded: {item}')
+            if force:
+                self.plugin._log.info(f'Would force-upload: {item}')
+            else:
+                self.plugin._log.info(f'Already uploaded: {item}')
 
-    def upload(self, item):
+    def upload(self, item, force=False):
         if self.ib is None:
             self._connect()
 
         trackid = self._trackid(item)
-        if self._needs_upload(item):
-            new_trackid = self.ib.upload(syspath(item.path), displayable_path(item.path))
+        if force or self._needs_upload(item):
+            new_trackid = self.ib.upload(syspath(item.path),
+                                         label=displayable_path(item.path),
+                                         force=force)
             if new_trackid:
                 if trackid:
                     self.plugin._log.debug(f'Trashing previous track ID: {trackid}')

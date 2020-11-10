@@ -199,7 +199,7 @@ class iBroadcast(object):
     def isuploaded(self, filepath):
         return calcmd5(filepath) in self.md5
 
-    def upload(self, filepath, label=None):
+    def upload(self, filepath, label=None, force=False):
         """
         Upload the given file to iBroadcast, if it isn't there already.
 
@@ -207,11 +207,12 @@ class iBroadcast(object):
         :param label: Human-readable file string (e.g., without problematic
                       special characters) to use when logging messages about
                       this operation, or None to use the file path directly.
+        :param force: Upload the file even if checksum is already present.
         :return: Track ID of the uploaded file, or None if no upload occurred.
         """
         if label is None:
             label = filepath
-        if self.isuploaded(filepath):
+        if not force and self.isuploaded(filepath):
             self._log.info(f'Skipping - already uploaded: {label}')
             return False
 
