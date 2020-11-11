@@ -103,7 +103,7 @@ class IBroadcastCommand(Subcommand):
                 if trackid:
                     self.plugin._log.debug(f'Trashing previous track ID: {trackid}')
                     self.ib.trash([trackid])
-                self._update(item, new_trackid)
+                self._update_track(item, new_trackid)
                 trackid = new_trackid
                 self.plugin._log.debug(f'Upload complete: {item}')
             else:
@@ -145,52 +145,97 @@ class IBroadcastCommand(Subcommand):
             self.tags[tagname] = tagcopy
 
     def _sync_tags(self, trackid, item):
-        remote_tagids = self.ib.gettags(trackid)
-        local_tagnames = self._tags(item)
-        if local_tagnames is None:
-            # NB: A usertags attribute is not present; skip this item.
-            return
+        local_tagids = set(self._local_tagids(item))
+        remote_tagids = set(self._remote_tagids(trackid))
+        lastsync_tagids = set(self._lastsync_tagids(item))
 
-        self.plugin._log.info(f'Syncing tags for {item}')
+        locally_added = local_tagids - lastsync_tagids
+        locally_removed = lastsync_tagids - local_tagids
+        remotely_added = remote_tagids - lastsync_tagids
+        remotely_removed = lastsync_tagids - remote_tagids
 
-        # Add new local tags.
-        for tagname in local_tagnames:
-            if tagname in self.tags:
-                # Existing remote tag.
-                tagid = self.tags[tagname]['id']
-            else:
-                # New remote tag -- create it.
-                tagid = self.ib.createtag(tagname)
-                self.tags[tagname] = {'id': tagid}
-            if not tagid in remote_tagids:
-                self.plugin._log.info(f"--> Adding tag '{tagname}' [{tagid}]")
-                self.ib.tagtracks(tagid, [trackid])
+        if locally_added or locally_removed or remotely_added or remotely_removed:
+            self.plugin._log.debug(f'Syncing tags for {item}')
 
-        # Remove stale remote tags.
-        for tagid in remote_tagids:
-            tagname = self.ib.tags[tagid]['name']
-            if not tagname in local_tagnames:
-                self.plugin._log.info(f"--> Removing tag '{tagname}' [{tagid}]")
-                self.ib.tagtracks(tagid, [trackid], untag=True)
+        for tagid in locally_added:
+            self.plugin._log.debug(f"--> Adding remote tag '{self._tagname(tagid)}' [{tagid}]")
+            self.ib.tagtracks(tagid, [trackid])
+            lastsync_tagids.add(tagid)
+
+        for tagid in locally_removed:
+            self.plugin._log.debug(f"--> Removing remote tag '{self._tagname(tagid)}' [{tagid}]")
+            self.ib.tagtracks(tagid, [trackid], untag=True)
+            lastsync_tagids.remove(tagid)
+
+        for tagid in remotely_added:
+            self.plugin._log.debug(f"--> Adding local tag '{self._tagname(tagid)}' [{tagid}]")
+            lastsync_tagids.add(tagid)
+
+        for tagid in remotely_removed:
+            self.plugin._log.debug(f"--> Removing local tag '{self._tagname(tagid)}' [{tagid}]")
+            lastsync_tagids.remove(tagid)
+
+        self._update_tags(item, lastsync_tagids)
+
+    def _tagname(self, tagid):
+        return self.ib.tags[tagid]['name']
+
+    def _tagid(self, tagname):
+        if tagname in self.tags:
+            # Existing remote tag.
+            return self.tags[tagname]['id']
+
+        # New remote tag -- create it.
+        self.plugin._log.debug(f"--> Creating remote tag '{tagname}'")
+        tagid = self.ib.createtag(tagname)
+        self.ib.tags[tagid] = {'name': tagname}
+        self.tags[tagname] = {'id': tagid}
+        return tagid
+
+    def _local_tagids(self, item):
+        usertags = self._usertags(item)
+        return [self._tagid(tagname) for tagname in usertags.split('|')] if usertags else []
+
+    def _remote_tagids(self, trackid):
+        return self.ib.gettags(trackid) if trackid else []
 
     @staticmethod
     def _say(msg, log_only=True, is_error=False):
         common.say(msg, log_only, is_error)
 
     @staticmethod
-    def _trackid(item):
-        return item.ib_trackid if hasattr(item, 'ib_trackid') else None
+    def _usertags(item):
+        return item.usertags if hasattr(item, 'usertags') else ''
 
     @staticmethod
-    def _tags(item):
-        return item.usertags.split('|') if hasattr(item, 'usertags') else None
+    def _trackid(item):
+        return item.ib_trackid if hasattr(item, 'ib_trackid') else None
 
     @staticmethod
     def _uploadtime(item):
         return int(item.ib_uploadtime) if hasattr(item, 'ib_uploadtime') else -1
 
     @staticmethod
-    def _update(item, trackid):
+    def _lastsync_tagids(item):
+        return item.ib_tagids.split('|') if hasattr(item, 'ib_tagids') and item.ib_tagids != '' else []
+
+    @staticmethod
+    def _update_track(item, trackid):
         item.ib_trackid = 0 if not trackid else trackid
         item.ib_uploadtime = ceil(time())
         item.store()
+
+    def _update_tags(self, item, tagids):
+        changed = False
+
+        if tagids != self._lastsync_tagids(item):
+            item.ib_tagids = '|'.join(tagids)
+            changed = True
+
+        usertags = '|'.join(sorted(self._tagname(tagid) for tagid in tagids))
+        if usertags != self._usertags(item):
+            item.usertags = usertags
+            changed = True
+
+        if changed:
+            item.store()
