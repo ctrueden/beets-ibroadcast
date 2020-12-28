@@ -237,17 +237,26 @@ class iBroadcast(object):
             return None if match is None else match.group(1)
 
     def istagged(self, tagid, trackid):
+        """
+        Get whether the specified track has the given tag.
+        :param tagid: ID of the tag in question.
+        :param trackid: ID of the track in question.
+        :return: True iff the track is tagged with that tag.
+        """
         if not tagid in self.tags:
             return False
-        return trackid in self.tags[tagid]
+        tag = self.tags[tagid]
+        if not 'tracks' in tag:
+            return False
+        return int(trackid) in tag['tracks']
 
     def gettags(self, trackid):
         """
-        Gets the tags for the given track.
+        Get the tags for the given track.
         :param trackid: ID of the track in question.
         :return: List of tag IDs.
         """
-        return [tagid for tagid, tag in self.tags.items() if int(trackid) in tag['tracks']]
+        return [tagid for tagid, tag in self.tags.items() if self.istagged(tagid, trackid)]
 
     def createtag(self, tagname):
         """
