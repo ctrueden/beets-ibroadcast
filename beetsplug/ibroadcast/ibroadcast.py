@@ -134,6 +134,15 @@ class iBroadcast(object):
         self._log.info(f'Login successful - user_id: {self.user_id()}')
         self.refresh()
 
+    def _download_md5s(self):
+        self._log.info('Downloading MD5 checksums...')
+        self.state = self._jsondata(requests.post(
+            "https://sync.ibroadcast.com",
+            data=f'user_id={self.user_id()}&token={self.token()}',
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        ))
+        self.md5 = set(self.state['md5'])
+
     def _jsondata(self, response):
         if not response.ok:
             raise ServerError('Server returned bad status: ',
@@ -147,16 +156,11 @@ class iBroadcast(object):
 
     def refresh(self):
         """
-        Download library data: albums, artists, MD5 checksums, etc.
+        Download library data: albums, artists, tracks, etc.
         """
 
-        self._log.info('Downloading MD5 checksums...')
-        self.state = self._jsondata(requests.post(
-            "https://sync.ibroadcast.com",
-            data=f'user_id={self.user_id()}&token={self.token()}',
-            headers={'Content-Type': 'application/x-www-form-urlencoded'},
-        ))
-        self.md5 = set(self.state['md5'])
+        # Invalidate any previously downloaded MD5 checksums.
+        self.md5 = None
 
         self._log.info('Downloading library data...')
         self.library = self._jsondata(requests.post(
@@ -197,6 +201,8 @@ class iBroadcast(object):
         return [ft['extension'] for ft in self.status['supported']]
 
     def isuploaded(self, filepath):
+        if not self.md5:
+            self._download_md5s()
         return calcmd5(filepath) in self.md5
 
     def upload(self, filepath, label=None, force=False):
