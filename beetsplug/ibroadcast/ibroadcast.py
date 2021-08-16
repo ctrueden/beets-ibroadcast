@@ -294,6 +294,7 @@ class iBroadcast(object):
         :param tagid: ID of the tag to apply.
         :param trackids: List of IDs for the tracks to tag.
         :param untag: If true, remove the tag rather than applying it.
+        :return: True if the operation was successful.
         """
         self._jsondata(requests.post(
             "https://api.ibroadcast.com/s/JSON/tagtracks",
@@ -311,12 +312,14 @@ class iBroadcast(object):
             }),
             headers={'Content-Type': 'application/json'}
         ))
+        return jsondata['result']
 
     def trash(self, trackids):
         """
         Move the given tracks to the trash.
 
         :param trackids: List of IDs for the tracks to tag.
+        :return: True if the operation was successful.
         """
         self._jsondata(requests.post(
             "https://api.ibroadcast.com/s/JSON/tagtracks",
@@ -332,3 +335,4 @@ class iBroadcast(object):
             }),
             headers={'Content-Type': 'application/json'}
         ))
+        return jsondata['result']
