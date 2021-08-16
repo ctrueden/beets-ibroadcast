@@ -268,6 +268,7 @@ class iBroadcast(object):
         """
         Create a tag.
 
+        :param tagname: Name of the tag to create.
         :return: ID of newly created tag.
         """
         jsondata = self._jsondata(requests.post(
@@ -288,7 +289,7 @@ class iBroadcast(object):
 
     def tagtracks(self, tagid, trackids, untag=False):
         """
-        Applies or removes the given tag to the specified tracks.
+        Apply or remove the given tag to the specified tracks.
 
         :param tagid: ID of the tag to apply.
         :param trackids: List of IDs for the tracks to tag.
@@ -313,7 +314,7 @@ class iBroadcast(object):
 
     def trash(self, trackids):
         """
-        Moves the given tracks to the trash.
+        Move the given tracks to the trash.
 
         :param trackids: List of IDs for the tracks to tag.
         """
