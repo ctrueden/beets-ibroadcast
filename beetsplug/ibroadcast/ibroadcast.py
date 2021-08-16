@@ -314,6 +314,111 @@ class iBroadcast(object):
         ))
         return jsondata['result']
 
+    def createplaylist(self, name, description='', sharable=False, mood=None):
+        """
+        Create a playlist.
+
+        :param name: Name of the playlist to create.
+        :param description: Description of the playlist.
+        :param sharable: Whether to make the playlist sharable and publicly viewable.
+        :param mood: Mood to use for autopopulating tracks:
+                     None, Party, Dance, Workout, Relaxed, or Chill.
+        :return: ID of newly created playlist.
+        """
+        if mood not in ('Party', 'Dance', 'Workout', 'Relaxed', 'Chill'): mood = ''
+
+        jsondata = self._jsondata(requests.post(
+            "https://api.ibroadcast.com/s/JSON/createplaylist",
+            data=json.dumps({
+                '_token': self.token(),
+                '_userid': self.user_id(),
+                'client': _client,
+                'version': _version,
+                'mode': 'createplaylist',
+                'supported_types': False,
+                'name': name,
+                'description': description,
+                'make_public': sharable,
+                'mood': mood,
+                'url': '//api.ibroadcast.com/s/JSON/createplaylist',
+            }),
+            headers={'Content-Type': 'application/json'}
+        ))
+        return jsondata['playlist_id']
+
+    def deleteplaylist(self, playlistid):
+        """
+        Delete a playlist.
+
+        :param playlistid: ID of the playlist to delete.
+        :return: True if the operation was successful.
+        """
+        jsondata = self._jsondata(requests.post(
+            "https://api.ibroadcast.com/s/JSON/deleteplaylist",
+            data=json.dumps({
+                '_token': self.token(),
+                '_userid': self.user_id(),
+                'client': _client,
+                'version': _version,
+                'mode': 'deleteplaylist',
+                'supported_types': False,
+                'playlist': playlistid,
+                'url': '//api.ibroadcast.com/s/JSON/deleteplaylist',
+            }),
+            headers={'Content-Type': 'application/json'}
+        ))
+        return jsondata['result']
+
+    def addtracks(self, playlistid, trackids):
+        """
+        Add tracks to the given playlist.
+
+        :param playlistid: ID of the playlist to update.
+        :param trackids: List of IDs for the tracks to be added.
+        :return: True if the operation was successful.
+        """
+        jsondata = self._jsondata(requests.post(
+            "https://api.ibroadcast.com/s/JSON/appendplaylist",
+            data=json.dumps({
+                '_token': self.token(),
+                '_userid': self.user_id(),
+                'client': _client,
+                'version': _version,
+                'mode': 'appendplaylist',
+                'supported_types': False,
+                'playlist': playlistid,
+                'tracks': trackids,
+                'url': '//api.ibroadcast.com/s/JSON/appendplaylist',
+            }),
+            headers={'Content-Type': 'application/json'}
+        ))
+        return jsondata['result']
+
+    def settracks(self, playlistid, trackids):
+        """
+        Updates the given playlist to consist of the specified tracks.
+
+        :param playlistid: ID of the playlist to update.
+        :param trackids: List of IDs for the playlist tracks.
+        :return: True if the operation was successful.
+        """
+        jsondata = self._jsondata(requests.post(
+            "https://api.ibroadcast.com/s/JSON/updateplaylist",
+            data=json.dumps({
+                '_token': self.token(),
+                '_userid': self.user_id(),
+                'client': _client,
+                'version': _version,
+                'mode': 'updateplaylist',
+                'supported_types': False,
+                'playlist': playlistid,
+                'tracks': trackids,
+                'url': '//api.ibroadcast.com/s/JSON/updateplaylist',
+            }),
+            headers={'Content-Type': 'application/json'}
+        ))
+        return jsondata['result']
+
     def trash(self, trackids):
         """
         Move the given tracks to the trash.
