@@ -11,7 +11,7 @@ __status__ = u'Kickstarted'
 
 __PACKAGE_TITLE__ = u'iBroadcast'
 __PACKAGE_NAME__ = u'beets-ibroadcast'
-__PACKAGE_DESCRIPTION__ = u'iBroadcast plugin for Beets',
+__PACKAGE_DESCRIPTION__ = u'iBroadcast plugin for Beets'
 __PACKAGE_URL__ = u'https://github.com/ctrueden/beets-ibroadcast'
 
 __PLUGIN_NAME__ = u'ibroadcast'
