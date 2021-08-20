@@ -130,7 +130,7 @@ class IBroadcastCommand(Subcommand):
             client='beets-ibroadcast', version=common.plg_ns['__version__'])
 
         # Reorganize the tags to be keyed on name rather than ID.
-        # This helps to achieve harmony with the usertags plugin.
+        # This helps to achieve harmony with the usertag plugin.
         self.tags = {}
         for tagid, tag in self.ib.tags.items():
             tagcopy = tag.copy()
