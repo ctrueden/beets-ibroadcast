@@ -6,12 +6,14 @@ from math import ceil
 from time import time
 from optparse import OptionParser
 
+from ibroadcast import iBroadcast
+
 from beets.library import Library
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, decargs
 from beets.util import syspath, displayable_path
 
-from beetsplug.ibroadcast import common, ibroadcast
+from beetsplug.ibroadcast import common
 
 
 def _safeint(v, otherwise):
@@ -131,7 +133,8 @@ class IBroadcastCommand(Subcommand):
         self.plugin._log.debug('Connecting to iBroadcast')
         username = self.plugin.config['username'].get()
         password = self.plugin.config['password'].get()
-        self.ib = ibroadcast.iBroadcast(username, password, self.plugin._log)
+        self.ib = iBroadcast(username, password, log=self.plugin._log,
+            client='beets-ibroadcast', version=common.plg_ns['__version__'])
 
         # Reorganize the tags to be keyed on name rather than ID.
         # This helps to achieve harmony with the usertags plugin.
