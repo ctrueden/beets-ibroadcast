@@ -19,3 +19,10 @@ def say(msg, log_only=True, is_error=False):
     _level = _level if log_only else logging.INFO
     _level = _level if not is_error else logging.ERROR
     __logger__.log(level=_level, msg=msg)
+
+
+def safeint(v, otherwise):
+    try:
+        return int(v)
+    except ValueError:
+        return otherwise

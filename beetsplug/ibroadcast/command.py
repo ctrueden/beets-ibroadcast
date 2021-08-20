@@ -16,13 +16,6 @@ from beets.util import syspath, displayable_path
 from beetsplug.ibroadcast import common
 
 
-def _safeint(v, otherwise):
-    try:
-        return int(v)
-    except ValueError:
-        return otherwise
-
-
 class IBroadcastCommand(Subcommand):
     plugin: BeetsPlugin = None
     lib: Library = None
@@ -123,7 +116,7 @@ class IBroadcastCommand(Subcommand):
 
     def _needs_upload(self, item):
         utime = self._uploadtime(item)
-        needs_upload = item.mtime > _safeint(utime, -1)
+        needs_upload = item.mtime > common.safeint(utime, -1)
         if self.plugin._log.isEnabledFor(logging.DEBUG):
             msg = 'Needs upload' if needs_upload else 'Already uploaded'
             self.plugin._log.debug(f'{msg}: {item} [mtime={item.mtime}; utime={utime}]')
