@@ -72,6 +72,40 @@ class IBroadcastCommand(Subcommand):
             for item in lib.items(query):
                 self.upload(item, force=opts.force)
 
+    def show_version_information(self):
+        common.say("{pt}({pn}) plugin for Beets: v{ver}".format(
+            pt=common.plg_ns['__PACKAGE_TITLE__'],
+            pn=common.plg_ns['__PACKAGE_NAME__'],
+            ver=common.plg_ns['__version__']
+        ), log_only=False)
+
+    ## -- SHARED --
+
+    def _connect(self):
+        self.plugin._log.debug('Connecting to iBroadcast')
+        username = self.plugin.config['username'].get()
+        password = self.plugin.config['password'].get()
+        self.ib = iBroadcast(username, password, log=self.plugin._log,
+            client='beets-ibroadcast', version=common.plg_ns['__version__'])
+
+        # Reorganize the tags to be keyed on name rather than ID.
+        # This helps to achieve harmony with the usertag plugin.
+        self.tags = {}
+        for tagid, tag in self.ib.tags.items():
+            tagcopy = tag.copy()
+            tagname = tagcopy.pop('name')
+            tagcopy['id'] = tagid
+            if tagname in self.tags:
+                self.plugin._log.warn(f"Ignoring duplicate tag '{tagname}' with ID {tagid}")
+            else:
+                self.tags[tagname] = tagcopy
+
+    @staticmethod
+    def _trackid(item):
+        return item.ib_trackid if hasattr(item, 'ib_trackid') else None
+
+    ## -- UPLOADS --
+
     def pretend(self, item, force=False):
         if self._needs_upload(item):
             old_trackid = self._trackid(item)
@@ -107,13 +141,6 @@ class IBroadcastCommand(Subcommand):
         if trackid:
             self._sync_tags(trackid, item)
 
-    def show_version_information(self):
-        self._say("{pt}({pn}) plugin for Beets: v{ver}".format(
-            pt=common.plg_ns['__PACKAGE_TITLE__'],
-            pn=common.plg_ns['__PACKAGE_NAME__'],
-            ver=common.plg_ns['__version__']
-        ), log_only=False)
-
     def _needs_upload(self, item):
         utime = self._uploadtime(item)
         needs_upload = item.mtime > common.safeint(utime, -1)
@@ -122,23 +149,17 @@ class IBroadcastCommand(Subcommand):
             self.plugin._log.debug(f'{msg}: {item} [mtime={item.mtime}; utime={utime}]')
         return needs_upload
 
-    def _connect(self):
-        self.plugin._log.debug('Connecting to iBroadcast')
-        username = self.plugin.config['username'].get()
-        password = self.plugin.config['password'].get()
-        self.ib = iBroadcast(username, password, log=self.plugin._log,
-            client='beets-ibroadcast', version=common.plg_ns['__version__'])
+    @staticmethod
+    def _uploadtime(item):
+        return int(item.ib_uploadtime) if hasattr(item, 'ib_uploadtime') else -1
 
-        # Reorganize the tags to be keyed on name rather than ID.
-        # This helps to achieve harmony with the usertag plugin.
-        self.tags = {}
-        for tagid, tag in self.ib.tags.items():
-            tagcopy = tag.copy()
-            tagname = tagcopy.pop('name')
-            tagcopy['id'] = tagid
-            if tagname in self.tags:
-                self.plugin._log.warn(f"Ignoring duplicate tag '{tagname}' with ID {tagid}")
-            self.tags[tagname] = tagcopy
+    @staticmethod
+    def _update_track(item, trackid):
+        item.ib_trackid = 0 if not trackid else trackid
+        item.ib_uploadtime = ceil(time())
+        item.store()
+
+    ## -- TAGS --
 
     def _sync_tags(self, trackid, item):
         local_tagids = set(self._local_tagids(item))
@@ -196,30 +217,12 @@ class IBroadcastCommand(Subcommand):
         return self.ib.gettags(trackid) if trackid else []
 
     @staticmethod
-    def _say(msg, log_only=True, is_error=False):
-        common.say(msg, log_only, is_error)
-
-    @staticmethod
     def _usertags(item):
         return item.usertags if hasattr(item, 'usertags') else ''
 
     @staticmethod
-    def _trackid(item):
-        return item.ib_trackid if hasattr(item, 'ib_trackid') else None
-
-    @staticmethod
-    def _uploadtime(item):
-        return int(item.ib_uploadtime) if hasattr(item, 'ib_uploadtime') else -1
-
-    @staticmethod
     def _lastsync_tagids(item):
         return item.ib_tagids.split('|') if hasattr(item, 'ib_tagids') and item.ib_tagids != '' else []
-
-    @staticmethod
-    def _update_track(item, trackid):
-        item.ib_trackid = 0 if not trackid else trackid
-        item.ib_uploadtime = ceil(time())
-        item.store()
 
     def _update_tags(self, item, tagids):
         changed = False
