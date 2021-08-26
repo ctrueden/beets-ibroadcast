@@ -37,7 +37,7 @@ setup(
 
     install_requires=[
         'beets>=1.4.9',
-        'ibroadcast>=1.1.0',
+        'ibroadcast>=1.1.1',
     ],
 
     tests_require=[
