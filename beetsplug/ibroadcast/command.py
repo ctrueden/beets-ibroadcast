@@ -47,7 +47,7 @@ class IBroadcastCommand(Subcommand):
         self.parser.add_option(
             '-p', '--pretend',
             action='store_true', dest='pretend', default=False,
-            help=u'report which files would be uploaded, but don\'t upload anything'
+            help=u'report which files would be uploaded, but don\'t upload them'
         )
 
         super(IBroadcastCommand, self).__init__(
