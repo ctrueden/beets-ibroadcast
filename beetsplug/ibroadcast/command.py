@@ -65,11 +65,10 @@ class IBroadcastCommand(Subcommand):
             self.show_version_information()
             return
 
-        if opts.pretend:
-            for item in lib.items(query):
+        for item in lib.items(query):
+            if opts.pretend:
                 self.pretend(item, force=opts.force)
-        else:
-            for item in lib.items(query):
+            else:
                 self.upload(item, force=opts.force)
 
     def show_version_information(self):
