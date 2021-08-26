@@ -102,6 +102,10 @@ class IBroadcastCommand(Subcommand):
     def _verbose(self):
         return self.plugin._log.level <= logging.DEBUG
 
+    def _stack_trace(self, e):
+        if self._verbose():
+            self.plugin._log.exception(e)
+
     @staticmethod
     def _trackid(item):
         return int(item.ib_trackid) if hasattr(item, 'ib_trackid') else None
@@ -127,13 +131,22 @@ class IBroadcastCommand(Subcommand):
 
         trackid = self._trackid(item)
         if force or self._needs_upload(item):
-            new_trackid = self.ib.upload(syspath(item.path),
-                                         label=displayable_path(item.path),
-                                         force=force)
+            try:
+                new_trackid = self.ib.upload(syspath(item.path),
+                                             label=displayable_path(item.path),
+                                             force=force)
+            except Exception as e:
+                self.plugin._log.error(f'Error uploading track: {item}')
+                self._stack_trace(e)
+                return
             if new_trackid:
                 if trackid:
                     self.plugin._log.debug(f'Trashing previous track ID: {trackid}')
-                    self.ib.trash([trackid])
+                    try:
+                        self.ib.trash([trackid])
+                    except Exception as e:
+                        self.plugin._log.error(f'Error trashing previously uploaded iBroadcast track {trackid}.')
+                        self._stack_trace(e)
                 self._update_track(item, new_trackid)
                 trackid = new_trackid
                 self.plugin._log.debug(f'Upload complete: {item}')
@@ -178,13 +191,22 @@ class IBroadcastCommand(Subcommand):
 
         for tagid in locally_added:
             self.plugin._log.debug(f"--> Adding remote tag '{self._tagname(tagid)}' [{tagid}]")
-            self.ib.tagtracks(tagid, [trackid])
-            lastsync_tagids.add(tagid)
+
+            try:
+                self.ib.tagtracks(tagid, [trackid])
+                lastsync_tagids.add(tagid)
+            except Exception as e:
+                self.plugin._log.error(f"Error tagging iBroadcast track {trackid} with tag '{self._tagname(tagid)}' [{tagid}].")
+                self._stack_trace(e)
 
         for tagid in locally_removed:
             self.plugin._log.debug(f"--> Removing remote tag '{self._tagname(tagid)}' [{tagid}]")
-            self.ib.tagtracks(tagid, [trackid], untag=True)
-            lastsync_tagids.remove(tagid)
+            try:
+                self.ib.tagtracks(tagid, [trackid], untag=True)
+                lastsync_tagids.remove(tagid)
+            except Exception as e:
+                self.plugin._log.error(f"Error untagging iBroadcast track {trackid} with tag '{self._tagname(tagid)}' [{tagid}].")
+                self._stack_trace(e)
 
         for tagid in remotely_added:
             self.plugin._log.debug(f"--> Adding local tag '{self._tagname(tagid)}' [{tagid}]")
@@ -206,10 +228,14 @@ class IBroadcastCommand(Subcommand):
 
         # New remote tag -- create it.
         self.plugin._log.debug(f"--> Creating remote tag '{tagname}'")
-        tagid = self.ib.createtag(tagname)
-        self.ib.tags[tagid] = {'name': tagname}
-        self.tags[tagname] = {'id': tagid}
-        return tagid
+        try:
+            tagid = self.ib.createtag(tagname)
+            self.ib.tags[tagid] = {'name': tagname}
+            self.tags[tagname] = {'id': tagid}
+            return tagid
+        except Exception as e:
+            self.plugin._log.error(f"Error creating iBroadcast tag 'tagname'.")
+            self._stack_trace(e)
 
     def _local_tagids(self, item):
         usertags = self._usertags(item)
