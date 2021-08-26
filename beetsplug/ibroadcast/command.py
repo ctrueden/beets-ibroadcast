@@ -1,13 +1,16 @@
 # This is free and unencumbered software released into the public domain.
 # See https://unlicense.org/ for details.
 
+import json
 import logging
 from math import ceil
+from pathlib import Path
 from time import time
 from optparse import OptionParser
 
 from ibroadcast import iBroadcast
 
+from beets import config # for reading playlist plugin configuration
 from beets.library import Library
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, decargs
@@ -65,11 +68,15 @@ class IBroadcastCommand(Subcommand):
             self.show_version_information()
             return
 
+        items = []
         for item in lib.items(query):
+            items.append(item)
             if opts.pretend:
                 self.pretend(item, force=opts.force)
             else:
                 self.upload(item, force=opts.force)
+
+        self.sync_playlists(items, pretend=opts.pretend)
 
     def show_version_information(self):
         common.say("{pt}({pn}) plugin for Beets: v{ver}".format(
@@ -109,6 +116,11 @@ class IBroadcastCommand(Subcommand):
     @staticmethod
     def _trackid(item):
         return int(item.ib_trackid) if hasattr(item, 'ib_trackid') else None
+
+    @staticmethod
+    def _path(path):
+        if type(path) == bytes: path = path.decode()
+        return Path(str(path)).resolve()
 
     ## -- UPLOADS --
 
@@ -266,3 +278,227 @@ class IBroadcastCommand(Subcommand):
 
         if changed:
             item.store()
+
+    ## -- PLAYLISTS --
+
+    def sync_playlists(self, items, playlists=None, relative_to=None, pretend=False):
+        """
+        Sync playlist contents between beets and iBroadcast.
+
+        :param items:       The beets track items to consider when syncing
+                            playlists. Playlists with tracks outside these
+                            items will be skipped.
+        :param playlists:   List of playlist paths to sync with iBroadcast,
+                            or None to sync all playlists stored beneath the
+                            playlist plugin's playlist_dir.
+        :param relative_to: Directory to which playlist tracks are relative,
+                            in the case of relative paths, or None to inherit
+                            the playlist plugin's relative_to setting.
+        :param pretend:     If True, report how playlists would be synced,
+                            but don't actually do it.
+        """
+        if playlists is None:
+            # No playlists explicitly given; glean playlists from config.
+            if 'playlist' not in config:
+                self.plugin._log.debug(f"No playlists given, and no playlist directory configured; skipping playlist sync.")
+                return
+
+            plcfg = config['playlist']
+
+            # Where to read playlist files from.
+            playlist_dir = self._path(plcfg['playlist_dir'].get() if 'playlist_dir' in plcfg else '.')
+            if not playlist_dir.is_dir():
+                self.plugin._log.warning(f"Invalid playlist directory: '{playlist_dir}'")
+                return
+
+            playlists = [path for path in playlist_dir.rglob('*.m3u') if path.is_file()]
+            playlists.sort()
+
+        if relative_to is None:
+            # Interpret paths in the playlist files relative to a base
+            # directory. Instead of setting it to a fixed path, it is also
+            # possible to set it to 'playlist' to use the playlist's parent
+            # directory or to 'library' to use the library directory.
+            relative_to = plcfg['relative_to'].get() if 'relative_to' in plcfg else 'library'
+            if relative_to == 'library': relative_to = config['directory'].get()
+
+            if relative_to != 'playlist':
+                relative_to = self._path(relative_to)
+                if not relative_to.is_dir():
+                    self.plugin._log.warning(f"Invalid relative_to directory: '{relative_to}'")
+                    return
+
+        # Retrieve last-synced playlist linkages.
+        # TODO: Make this file path configurable in the beets-ibroadcast config.
+        pl_lastsync_path = Path(config['directory'].get()) / '.ibroadcast-playlists.json'
+        if pl_lastsync_path.is_file():
+            try:
+                with open(pl_lastsync_path) as f:
+                    pl_lastsync = json.load(f)
+            except Exception as e:
+                self.plugin._log.error(f"Error parsing last-sync metadata from '{pl_lastsync_path}'.")
+                self._stack_trace(e)
+                pl_lastsync = {}
+        else:
+            pl_lastsync = {}
+
+        self.plugin._log.info(f"Syncing playlists")
+
+        # Sync local playlists.
+        for playlist in playlists:
+            path = Path(playlist)
+            if not path.is_file():
+                self.plugin._log.warning(f"Skipping invalid playlist: '{path}'")
+                continue
+            track_prefix = self._path(path.parent.parent) if relative_to == 'playlist' else self._path(relative_to)
+            self._sync_playlist(items, path, track_prefix, pl_lastsync, pretend=pretend)
+
+        if pretend: return # Nothing more we can do here!
+
+        # Sync remote-only playlists.
+        for playlistid in self.ib.playlists:
+            pid = int(playlistid)
+            plname = self.ib.playlists[playlistid]['name']
+            plkeys = [k for k, v in pl_lastsync.items() if v['id'] == pid]
+            if len(plkeys) > 1:
+                self.plugin._log.warning(f"Skipping sync of iBroadcast playlist '{plname}' with ID {playlistid}, " +
+                    f"because it somehow became linked to multiple local playlists:" +
+                    ''.join([f'\n- {path}' for path in plkeys]))
+            elif len(plkeys) == 0:
+                # TODO: Check that all trackids listed on the remote have corresponding local queried items.
+                # Then, create M3U locally with matching name, populated with beets track paths.
+                self.plugin._log.warning(f"iBroadcast playlist '{plname}' with ID {playlistid} " +
+                    "does not exist locally, and I am not smart enough to download it for you. Pull requests welcome!")
+            elif not Path(plkeys[0]).is_file():
+                # TODO: Decide how to handle this scenario. Should the playlist be recreated?
+                # Or assume it was deleted locally, and therefore should be deleted remotely too?
+                # Probably makes sense to compare the local and remote trackids to decide.
+                self.plugin._log.warning(f"iBroadcast playlist '{plname}' with ID {playlistid} " +
+                    "is linked to missing local playlist '{plkeys[0]}', and I am not smart enough to fix it for you. Pull requests welcome!")
+
+        # Persist last-synced playlist linkages for next time.
+        with open(pl_lastsync_path, 'w') as f:
+            json.dump(pl_lastsync, f)
+
+    def _sync_playlist(self, items, plpath, track_prefix, pl_lastsync, pretend=False):
+        # Extract track paths from playlist file.
+        with open(plpath) as pl:
+            lines = [line.strip() for line in pl.readlines()]
+        track_paths = [self._path(track_prefix / line) for line in lines if len(line) > 0 and not line.startswith('#')]
+
+        # Convert track paths to iBroadcast trackids.
+        track_results = []
+        hints_to_fix = set()
+        non_matching_tracks = 0
+        local_trackids = []
+        number_width = len(str(len(track_paths)))
+        for track_path in track_paths:
+            no = len(track_results) + 1
+
+            # Fail fast if track file does not exist.
+            if not track_path.is_file():
+                track_results.append(f'  {no:{number_width}}. [ INVALID FILE  ] {track_path}')
+                continue
+
+            # Match track path to beets track item.
+            track_items = [item for item in items if self._path(item.path) == track_path]
+            if len(track_items) == 0:
+                non_matching_tracks += 1
+                track_results.append(f'  {no:{number_width}}. [  NOT IN QUERY  ] {track_path}')
+                hints_to_fix.add("\nPlease make sure all tracks in the playlist are imported to beets, " +
+                    "and that your query is broad enough to match all tracks of this playlist.")
+                continue
+            elif len(track_items) > 1:
+                track_results.append(f'- {no:{number_width}}. [MULTIPLE MATCHES] {track_path}')
+                continue
+            track_item = next(iter(track_items))
+
+            # Match beets track item to iBroadcast trackid.
+            trackid = self._trackid(track_item)
+            if not trackid:
+                track_results.append(f'  {no:{number_width}}. [  NOT UPLOADED  ] {track_path}')
+                hints_to_fix.add("\nPlease upload all the playlist's tracks to iBroadcast before syncing it.")
+                continue
+
+            track_results.append(f'  {no:{number_width}}. [       OK       ] {track_path}')
+            local_trackids.append(trackid)
+
+        if non_matching_tracks == len(track_paths):
+            # None of the tracks of the playlist matched.
+            self.plugin._log.debug(f"Skipping sync of playlist '{plpath}' with no matching tracks.");
+            return
+        elif len(local_trackids) < len(track_paths):
+            # Some of the tracks of the playlist matched, but not all of them.
+            self.plugin._log.debug(f"Skipping sync of playlist '{plpath}' with track problems:\n" + '\n'.join(track_results) + ''.join(hints_to_fix))
+            return
+
+        playlistid = playlist_name = lastsync_trackids = None
+        plkey = str(plpath)
+        if plkey in pl_lastsync:
+            playlistid = pl_lastsync[plkey]['id']
+            lastsync_trackids = pl_lastsync[plkey]['tracks']
+
+        if pretend:
+            # No iBroadcast connection -- report based on local info only.
+            if not playlistid:
+                self.plugin._log.info(f"Would create and sync new playlist for '{plpath}'")
+            elif local_trackids != lastsync_trackids:
+                self.plugin._log.info(f"Would upload modified track list for playlist '{plpath}'")
+            else:
+                self.plugin._log.info(f"Already synced: '{plpath}'")
+            return
+
+        if self.ib is None:
+            self._connect()
+
+        if playlistid:
+            # Glean up-to-date track IDs from remote playlist.
+            ib_playlist = self.ib.playlist(playlistid)
+            if ib_playlist is None or 'tracks' not in ib_playlist:
+                self._log.warning(f"Skipping sync of playlist '{plpath}' (iBroadcast ID {playlistid}) with no remote track list.")
+                return
+            remote_trackids = ib_playlist['tracks']
+        else:
+            # Playlist does not exist on the iBroadcast side; create it.
+            playlist_name = plpath.name[:-4] # without .m3u suffix
+            try:
+                playlistid = self.ib.createplaylist(playlist_name)
+            except Exception as e:
+                self.plugin._log.error(f"Error creating iBroadcast playlist '{playlist_name}'.")
+                self._stack_trace(e)
+                return
+            remote_trackids = None
+
+        local_changes = local_trackids != lastsync_trackids
+        remote_changes = remote_trackids != lastsync_trackids
+
+        if local_changes and remote_changes:
+            self.plugin._log.warning(f"Skipping sync of playlist '{plpath}' (iBroadcast ID {playlistid}) with both local and remote changes.")
+            self.plugin._log.debug(f'* remote_trackids = {remote_trackids}')
+            self.plugin._log.debug(f'* local_trackids = {local_trackids}')
+            self.plugin._log.debug(f'* lastsync_trackids = {lastsync_trackids}')
+            return
+
+        if remote_changes:
+            self.plugin._log.warning(f"Skipping sync of playlist '{plpath}' (iBroadcast ID {playlistid}) with remote changes, " +
+                "because I am not smart enough to update your local playlist to match. Pull requests welcome!")
+            self.plugin._log.debug(f'* remote_trackids = {remote_trackids}')
+            self.plugin._log.debug(f'* local_trackids = {local_trackids}')
+            self.plugin._log.debug(f'* lastsync_trackids = {lastsync_trackids}')
+            #lastsync_trackids = remote_trackids
+            return
+
+        if local_changes:
+            self.plugin._log.info(f"Syncing locally changed playlist '{plpath}' (iBroadcast ID {playlistid}).")
+            try:
+                self.ib.settracks(playlistid, local_trackids)
+                lastsync_trackids = local_trackids
+            except Exception as e:
+                self.plugin._log.error(f"Error updating iBroadcast playlist {playlistid}.")
+                self._stack_trace(e)
+                return
+        else:
+            self.plugin._log.debug(f"Skipping sync of unchanged playlist '{plpath}' (iBroadcast ID {playlistid}).")
+
+        # Update last-synced playlists metadata.
+        pl_lastsync[plkey] = {'id': playlistid, 'tracks': lastsync_trackids}
