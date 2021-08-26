@@ -106,7 +106,7 @@ update your corresponding M3U file yet. PRs welcome to implement this feature!
 If a playlist has been modified both locally and remotely, the plugin will
 report the situation, but take no action.
 
-In order to know whether a playlist's tracked were changed locally, remotely,
+In order to know whether a playlist's tracks were changed locally, remotely,
 or both since the last sync, the playlist's current state is stored in a hidden
 file `.ibroadcast-playlists.json` in the base directory of your beets library.
 
