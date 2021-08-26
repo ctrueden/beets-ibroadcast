@@ -99,6 +99,9 @@ class IBroadcastCommand(Subcommand):
             else:
                 self.tags[tagname] = tagcopy
 
+    def _verbose(self):
+        return self.plugin._log.level <= logging.DEBUG
+
     @staticmethod
     def _trackid(item):
         return item.ib_trackid if hasattr(item, 'ib_trackid') else None
@@ -143,7 +146,7 @@ class IBroadcastCommand(Subcommand):
     def _needs_upload(self, item):
         utime = self._uploadtime(item)
         needs_upload = item.mtime > common.safeint(utime, -1)
-        if self.plugin._log.isEnabledFor(logging.DEBUG):
+        if self._verbose():
             msg = 'Needs upload' if needs_upload else 'Already uploaded'
             self.plugin._log.debug(f'{msg}: {item} [mtime={item.mtime}; utime={utime}]')
         return needs_upload
