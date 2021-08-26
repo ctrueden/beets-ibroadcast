@@ -95,7 +95,7 @@ class IBroadcastCommand(Subcommand):
             tagname = tagcopy.pop('name')
             tagcopy['id'] = tagid
             if tagname in self.tags:
-                self.plugin._log.warn(f"Ignoring duplicate tag '{tagname}' with ID {tagid}")
+                self.plugin._log.warning(f"Ignoring duplicate tag '{tagname}' with ID {tagid}.")
             else:
                 self.tags[tagname] = tagcopy
 
@@ -135,7 +135,7 @@ class IBroadcastCommand(Subcommand):
                 trackid = new_trackid
                 self.plugin._log.debug(f'Upload complete: {item}')
             else:
-                self.plugin._log.warn(f'Not uploaded: {item}')
+                self.plugin._log.warning(f'Not uploaded: {item}')
 
         if trackid:
             self._sync_tags(trackid, item)
