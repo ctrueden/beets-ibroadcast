@@ -7,7 +7,7 @@ __copyright__ = u'Public domain'
 __license__ = u'License :: OSI Approved :: Unlicense'
 
 __version__ = u'0.5.0.dev0'
-__status__ = u'Kickstarted'
+__status__ = u'Functional'
 
 __PACKAGE_TITLE__ = u'iBroadcast'
 __PACKAGE_NAME__ = u'beets-ibroadcast'
