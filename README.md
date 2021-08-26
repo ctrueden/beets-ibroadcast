@@ -118,11 +118,15 @@ playlists in your beets library.
 One gotcha with playlist syncing is that playlists can only be synced from
 local to remote when the query you pass to the plugin matches all tracks of a
 playlist. So one simple way to sync all your playlists is to upload your entire
-beets library, by passing an empty query.
+beets library, by passing an empty query:
+
+```
+beet ibroadcast
+```
 
 What if you don't want to upload your entire beets library to iBroadcast,
 though, but you still want to upload all tracks that are part of a playlist?
-If so, here is one way to accomplish that:
+Here is one way to accomplish that:
 
 ```
 cat /path/to/playlists/*.m3u | sort -u > /tmp/tracks-to-upload.m3u
