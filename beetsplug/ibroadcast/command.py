@@ -104,7 +104,7 @@ class IBroadcastCommand(Subcommand):
 
     @staticmethod
     def _trackid(item):
-        return item.ib_trackid if hasattr(item, 'ib_trackid') else None
+        return int(item.ib_trackid) if hasattr(item, 'ib_trackid') else None
 
     ## -- UPLOADS --
 
