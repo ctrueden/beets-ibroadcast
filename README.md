@@ -53,7 +53,7 @@ I recommend starting with a small query, to get a feel for how it works. E.g.:
 beet ibroadcast -p artist:Offspring album:Americana
 ```
 
-And then if you like what you see, do it again with `-p` and see how it goes.
+If you like what you see, do it again without `-p` and see how it goes.
 Once you have some confidence in the tool, you can go nuts with larger queries.
 
 ### How does beets-ibroadcast avoid redundant uploads?
