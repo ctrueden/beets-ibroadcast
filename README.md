@@ -80,8 +80,8 @@ This plugin syncs tags on the iBroadcast side with the `usertags` flexible
 attribute, in a way compatible with the [usertag plugin][1].
 
 If you modify a track's tags locally (e.g. via `beet addtag`), those changes
-will synced to iBroadcast. If you modify a track's tags remotely (e.g. via the
-iBroadcast web interface), those changes will be synced to the beets database.
+will be synced to iBroadcast. If you modify a track's tags remotely (e.g. via
+the iBroadcast website), those changes will be synced to the beets database.
 
 In order to know whether a track's tags were changed locally, remotely, or
 both since the last sync, the current state of the tags is stored in an
@@ -100,7 +100,7 @@ stored locally in your playlists directory, as configured by the
 
 If you modify a playlist locally (e.g. by editing an M3U file), those changes
 will be synced to iBroadcast. If you modify a playlist remotely (e.g. via the
-iBroadcast web interface), those changes will be noticed, but not acted upon;
+iBroadcast website), those changes will be noticed, but not acted upon;
 instead, a message will be printed that the plugin is not smart enough to
 update your corresponding M3U file yet. PRs welcome to implement this feature!
 If a playlist has been modified both locally and remotely, the plugin will
