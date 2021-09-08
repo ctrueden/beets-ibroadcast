@@ -114,6 +114,15 @@ class IBroadcastCommand(Subcommand):
             self.plugin._log.exception(e)
 
     @staticmethod
+    def _assert_type(obj, expected_type):
+        assert type(obj) == expected_type
+
+    @staticmethod
+    def _assert_element_type(items, expected_type):
+        for item in items:
+            assert type(item) == expected_type
+
+    @staticmethod
     def _trackid(item):
         return int(item.ib_trackid) if hasattr(item, 'ib_trackid') else None
 
@@ -193,6 +202,10 @@ class IBroadcastCommand(Subcommand):
         remote_tagids = set(self._remote_tagids(trackid))
         lastsync_tagids = set(self._lastsync_tagids(item))
 
+        self._assert_element_type(local_tagids, str)
+        self._assert_element_type(remote_tagids, str)
+        self._assert_element_type(lastsync_tagids, str)
+
         locally_added = local_tagids - lastsync_tagids
         locally_removed = lastsync_tagids - local_tagids
         remotely_added = remote_tagids - lastsync_tagids
@@ -241,7 +254,7 @@ class IBroadcastCommand(Subcommand):
         # New remote tag -- create it.
         self.plugin._log.debug(f"--> Creating remote tag '{tagname}'")
         try:
-            tagid = self.ib.createtag(tagname)
+            tagid = str(self.ib.createtag(tagname))
             self.ib.tags[tagid] = {'name': tagname}
             self.tags[tagname] = {'id': tagid}
             return tagid
