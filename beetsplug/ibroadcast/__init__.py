@@ -4,7 +4,7 @@
 import os
 
 from beets.plugins import BeetsPlugin
-from beets.util.confit import ConfigSource, load_yaml
+from confuse import ConfigSource, load_yaml
 
 from beetsplug.ibroadcast.command import IBroadcastCommand
 
