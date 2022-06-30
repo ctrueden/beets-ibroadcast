@@ -53,6 +53,12 @@ class IBroadcastCommand(Subcommand):
             help=u'report which files would be uploaded, but don\'t upload them'
         )
 
+        self.parser.add_option(
+            '--sync-playlists',
+            action='store_true', dest='sync_playlists', default=False,
+            help=u'also sync playlists'
+        )
+
         super(IBroadcastCommand, self).__init__(
             parser=self.parser,
             name=common.plg_ns['__PLUGIN_NAME__'],
@@ -76,7 +82,8 @@ class IBroadcastCommand(Subcommand):
             else:
                 self.upload(item, force=opts.force)
 
-        self.sync_playlists(items, pretend=opts.pretend)
+        if opts.sync_playlists:
+            self.sync_playlists(items, pretend=opts.pretend)
 
     def show_version_information(self):
         common.say("{pt}({pn}) plugin for Beets: v{ver}".format(
