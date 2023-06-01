@@ -232,7 +232,7 @@ class IBroadcastCommand(Subcommand):
                 self._stack_trace(e)
 
         for tagid in locally_removed:
-            self.plugin._log.debug(f"--> Removing remote tag '{self._tagname(tagid)}' [{tagid}]")
+            self.plugin._log.debug(f"--> Removing remote tag '{self._tagname(tagid) or '[deleted tag]'}' [{tagid}]")
             try:
                 self.ib.tagtracks(tagid, [trackid], untag=True)
                 lastsync_tagids.remove(tagid)
@@ -245,13 +245,16 @@ class IBroadcastCommand(Subcommand):
             lastsync_tagids.add(tagid)
 
         for tagid in remotely_removed:
-            self.plugin._log.debug(f"--> Removing local tag '{self._tagname(tagid)}' [{tagid}]")
-            lastsync_tagids.remove(tagid)
+            self.plugin._log.debug(f"--> Removing local tag '{self._tagname(tagid) or '[deleted tag]'}' [{tagid}]")
+            if tagid in lastsync_tagids: 
+                # If the tag was removed both locally AND remotely,
+                # then the id was already removed from the set.
+                lastsync_tagids.remove(tagid)
 
         self._update_tags(item, lastsync_tagids)
 
     def _tagname(self, tagid):
-        return self.ib.tags[tagid]['name']
+        return self.ib.tags[tagid]['name'] if tagid in self.ib.tags else None
 
     def _tagid(self, tagname):
         if tagname in self.tags:
@@ -266,7 +269,7 @@ class IBroadcastCommand(Subcommand):
             self.tags[tagname] = {'id': tagid}
             return tagid
         except Exception as e:
-            self.plugin._log.error(f"Error creating iBroadcast tag 'tagname'.")
+            self.plugin._log.error(f"Error creating iBroadcast tag '{tagname}'.")
             self._stack_trace(e)
 
     def _local_tagids(self, item):
