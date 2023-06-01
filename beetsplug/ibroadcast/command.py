@@ -246,7 +246,10 @@ class IBroadcastCommand(Subcommand):
 
         for tagid in remotely_removed:
             self.plugin._log.debug(f"--> Removing local tag '{self._tagname(tagid)}' [{tagid}]")
-            lastsync_tagids.remove(tagid)
+            if tagid in lastsync_tagids: 
+                # If the tag was removed both locally AND remotely,
+                # then the id was already removed from the set.
+                lastsync_tagids.remove(tagid)
 
         self._update_tags(item, lastsync_tagids)
 
