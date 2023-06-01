@@ -251,7 +251,7 @@ class IBroadcastCommand(Subcommand):
         self._update_tags(item, lastsync_tagids)
 
     def _tagname(self, tagid):
-        return self.ib.tags[tagid]['name']
+        return self.ib.tags[tagid]['name'] if tagid in self.ib.tags else None
 
     def _tagid(self, tagname):
         if tagname in self.tags:
