@@ -269,7 +269,7 @@ class IBroadcastCommand(Subcommand):
             self.tags[tagname] = {'id': tagid}
             return tagid
         except Exception as e:
-            self.plugin._log.error(f"Error creating iBroadcast tag 'tagname'.")
+            self.plugin._log.error(f"Error creating iBroadcast tag '{tagname}'.")
             self._stack_trace(e)
 
     def _local_tagids(self, item):
