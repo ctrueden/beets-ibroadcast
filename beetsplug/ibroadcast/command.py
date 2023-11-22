@@ -59,6 +59,10 @@ class IBroadcastCommand(Subcommand):
             help=u'also sync playlists'
         )
 
+        if self.plugin.config['auto'].get():
+            self.plugin.register_listener('album_imported', self.upload_imported_album)
+            self.plugin.register_listener('item_imported', self.upload_item)
+
         super(IBroadcastCommand, self).__init__(
             parser=self.parser,
             name=common.plg_ns['__PLUGIN_NAME__'],
@@ -191,6 +195,13 @@ class IBroadcastCommand(Subcommand):
             msg = 'Needs upload' if needs_upload else 'Already uploaded'
             self.plugin._log.debug(f'{msg}: {item} [mtime={item.mtime}; utime={utime}]')
         return needs_upload
+
+    def upload_imported_album(self, lib, album):
+        for item in album.items():
+            self.upload(syspath(item))
+
+    def upload_item(self, lib, item):
+        self.upload(syspath(item))
 
     @staticmethod
     def _uploadtime(item):
