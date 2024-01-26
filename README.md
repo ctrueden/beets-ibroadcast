@@ -21,6 +21,15 @@ library to the [iBroadcast](https://www.ibroadcast.com/) streaming service.
    ```
    Be sure to put quotes around your password if it includes any special characters.
 
+   Optionally, if you'd like to upload newly imported items from your library,
+   set `auto` to true:
+
+   ```yaml
+   ibroadcast:
+     auto: true
+     ...
+   ```
+
 ## Usage
 
 ```
