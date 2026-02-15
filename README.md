@@ -13,13 +13,10 @@ library to the [iBroadcast](https://www.ibroadcast.com/) streaming service.
 2. Enable the plugin by adding `ibroadcast` to your `plugins:` section
    in your beets config file.
 
-3. Configure your iBroadcast credentials:
-   ```yaml
-   ibroadcast:
-     username: <your email address>
-     password: <your password>
-   ```
-   Be sure to put quotes around your password if it includes any special characters.
+3. The first time you run the plugin, it will prompt you to authorize via a
+   device code -- visit the URL shown and enter the code to grant access.
+   Tokens are saved to `~/.config/beets/ibroadcast-tokens.json` and reused
+   automatically on subsequent runs.
 
    Optionally, if you'd like to upload newly imported items from your library,
    set `auto` to true:
@@ -27,7 +24,6 @@ library to the [iBroadcast](https://www.ibroadcast.com/) streaming service.
    ```yaml
    ibroadcast:
      auto: true
-     ...
    ```
 
 ## Usage
