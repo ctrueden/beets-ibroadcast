@@ -6,7 +6,8 @@ import os
 from beets.plugins import BeetsPlugin
 from confuse import ConfigSource, load_yaml
 
-from beetsplug.ibroadcast.command import IBroadcastCommand
+from beetsplug.ibroadcast.upload_command import IBUploadCommand
+from beetsplug.ibroadcast.playlist_command import IBPlaylistCommand
 
 
 class IBroadcastPlugin(BeetsPlugin):
@@ -19,4 +20,4 @@ class IBroadcastPlugin(BeetsPlugin):
         self.config.add(source)
 
     def commands(self):
-        return [IBroadcastCommand(self)]
+        return [IBUploadCommand(self), IBPlaylistCommand(self)]

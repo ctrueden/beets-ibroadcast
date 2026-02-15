@@ -1,7 +1,11 @@
-# Beets iBroadcast Plugin
+# beets iBroadcast Plugin
 
-This plugin lets you upload music from your [beets](https://beets.io)
-library to the [iBroadcast](https://www.ibroadcast.com/) streaming service.
+This plugin lets you sync your [beets](https://beets.io) library
+to the [iBroadcast](https://www.ibroadcast.com/) streaming service.
+Supported operations include:
+
+* ib-upload - upload tracks from beets to iBroadcast
+* ib-playlist - sync playlists bidirectionally
 
 ## Setup
 
@@ -14,7 +18,7 @@ library to the [iBroadcast](https://www.ibroadcast.com/) streaming service.
    in your beets config file.
 
 3. The first time you run the plugin, it will prompt you to authorize via a
-   device code -- visit the URL shown and enter the code to grant access.
+   device code. Visit the URL shown and enter the code to grant access.
    Tokens are saved to `~/.config/beets/ibroadcast-tokens.json` and reused
    automatically on subsequent runs.
 
@@ -26,16 +30,49 @@ library to the [iBroadcast](https://www.ibroadcast.com/) streaming service.
      auto: true
    ```
 
-## Usage
+## Commands
 
+### `beet ib-upload [query]`
+
+Upload tracks matching the query to iBroadcast and sync tags.
+
+**Alias:** `beet ibroadcast` (for backwards compatibility)
+
+**Flags:**
+- `-v, --version` — show plugin version
+- `-f, --force` — upload all matched files, even if already uploaded
+- `-p, --pretend` — report which files would be uploaded without uploading
+
+**Examples:**
 ```
-beet ibroadcast <query>
+beet ib-upload                         # upload entire library
+beet ib-upload artist:Offspring        # upload matching tracks
+beet ibroadcast -p album:Americana     # pretend (backward-compat alias)
 ```
 
-- All tracks matching the query are uploaded as needed.
-- [Usertags][1] are synced with the tags on iBroadcast.
-- [Playlists][2] are synced as playlists on iBroadcast, as long as
-  the tracks of the playlist are all covered by the given query.
+### `beet ib-playlist [playlist_name...]`
+
+Sync playlists between local M3U files and iBroadcast.
+
+**Alias:** `beet ib-pl`
+
+**Flags:**
+- `--upload` — push local M3U playlists to iBroadcast only
+- `--download` — pull iBroadcast playlists to local M3U only
+- `--sync` — bidirectional sync (default if no direction flag)
+- `--delete` — propagate deletions (opt-in)
+- `-p, --pretend` — report what would happen without doing it
+
+**Examples:**
+```
+beet ib-playlist -p                     # preview bidirectional sync
+beet ib-playlist --upload               # push all local playlists
+beet ib-playlist --download             # pull all remote playlists
+beet ib-playlist --upload Favorites     # push only "Favorites" playlist
+beet ib-playlist --sync --delete        # full sync with deletion
+```
+
+**Positional arguments** filter by playlist name (case-insensitive).
 
 ## FAQ
 
@@ -46,13 +83,14 @@ If you want to see what the plugin will do without actually doing it, you can
 pass the `-p` (for "pretend") flag:
 
 ```
-beet ibroadcast -p
+beet ib-upload -p
+beet ib-playlist -p
 ```
 
 I recommend starting with a small query, to get a feel for how it works. E.g.:
 
 ```
-beet ibroadcast -p artist:Offspring album:Americana
+beet ib-upload -p artist:Offspring album:Americana
 ```
 
 If you like what you see, do it again without `-p` and see how it goes.
@@ -99,65 +137,56 @@ your beets database.
 
 ### How are playlists synced?
 
-The plugin syncs playlists on the iBroadcast side with M3U playlist files
-stored locally in your playlists directory, as configured by the
-[playlist plugin][2].
+The `ib-playlist` command syncs playlists between local M3U files and
+iBroadcast. It supports three modes:
 
-If you modify a playlist locally (e.g. by editing an M3U file), those changes
-will be synced to iBroadcast. If you modify a playlist remotely (e.g. via the
-iBroadcast website), those changes will be noticed, but not acted upon;
-instead, a message will be printed that the plugin is not smart enough to
-update your corresponding M3U file yet. PRs welcome to implement this feature!
-If a playlist has been modified both locally and remotely, the plugin will
-report the situation, but take no action.
+- **Upload** (`--upload`): Push local M3U playlists to iBroadcast.
+- **Download** (`--download`): Pull iBroadcast playlists to local M3U files.
+- **Sync** (default): Bidirectional — upload local changes and download
+  remote changes.
 
-In order to know whether a playlist's tracks were changed locally, remotely,
-or both since the last sync, the playlist's current state is stored in a hidden
-file `.ibroadcast-playlists.json` in the base directory of your beets library.
+Playlist tracks are matched by their `ib_trackid` attribute, so tracks must
+be uploaded to iBroadcast (via `ib-upload`) before they can be synced as
+part of a playlist.
 
-See the [playlist plugin documentation][2] for details on working with
-playlists in your beets library.
+**Three-way merge:** The plugin uses a state file to detect whether changes
+occurred locally, remotely, or both. If only one side changed, those changes
+are applied. If both sides changed, the playlist is skipped with a warning.
 
-### How can I upload all my playlists at once?
+**Deletion handling:** By default, deletions are not propagated. Pass
+`--delete` to enable deletion propagation. A deletion is only applied if the
+other side is unchanged since last sync.
 
-One gotcha with playlist syncing is that playlists can only be synced from
-local to remote when the query you pass to the plugin matches all tracks of a
-playlist. So one simple way to sync all your playlists is to upload your entire
-beets library, by passing an empty query:
+The playlist state file is stored at
+`~/.config/beets/ibroadcast-playlists.json` by default. If you previously
+used beets-ibroadcast, the old state file (`.ibroadcast-playlists.json` in
+your beets library directory) will be automatically migrated on first run.
 
-```
-beet ibroadcast
-```
+You can configure a custom state file path:
 
-What if you don't want to upload your entire beets library to iBroadcast,
-though, but you still want to upload all tracks that are part of a playlist?
-Here is one way to accomplish that:
-
-```
-cat /path/to/playlists/*.m3u | sort -u > /tmp/tracks-to-upload.m3u
-beet ibroadcast playlist:/tmp/tracks-to-upload.m3u
-rm /tmp/tracks-to-upload.m3u
+```yaml
+ibroadcast:
+  playlist_state: /path/to/my-playlist-state.json
 ```
 
-This will merge all the playlists in `/path/to/playlists/*.m3u` into a single
-temporary playlist file, which you then feed as your beets query; the
-ibroadcast plugin will then ensure all tracks matching the query are uploaded,
-and all playlists including those tracks are synced. This trick assumes that
-you have configured the playlist directory in your beets config as follows:
+Playlist files are discovered from the directory configured by the
+[playlist plugin][2]:
 
 ```yaml
 playlist:
   playlist_dir: /path/to/playlists
 ```
 
-Otherwise, the ibroadcast plugin can't find and sync your M3U files.
+See the [playlist plugin documentation][2] for details on configuring
+`playlist_dir` and `relative_to`.
 
 ### How can I get more details about why things go wrong?
 
 You can tell beets to be more verbose in its output using the `-v` flag. E.g.:
 
 ```
-beet -v ibroadcast usertags:favorites
+beet -v ib-upload usertags:favorites
+beet -v ib-playlist
 ```
 
 This will cause the ibroadcast plugin to emit more detailed debugging messages.

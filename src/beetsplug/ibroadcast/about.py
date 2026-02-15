@@ -19,3 +19,9 @@ __PACKAGE_URL__ = u'https://github.com/ctrueden/beets-ibroadcast'
 __PLUGIN_NAME__ = u'ibroadcast'
 __PLUGIN_ALIAS__ = u'tpl'
 __PLUGIN_SHORT_DESCRIPTION__ = u'the music revolution starts here'
+
+__UPLOAD_COMMAND__ = u'ib-upload'
+__UPLOAD_ALIAS__ = u'ibroadcast'
+
+__PLAYLIST_COMMAND__ = u'ib-playlist'
+__PLAYLIST_ALIAS__ = u'ib-pl'

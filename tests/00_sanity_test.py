@@ -28,6 +28,10 @@ class CompletionTest(TestHelper, Assertions):
         self.assertTrue(hasattr(about, "__PLUGIN_NAME__"))
         self.assertTrue(hasattr(about, "__PLUGIN_ALIAS__"))
         self.assertTrue(hasattr(about, "__PLUGIN_SHORT_DESCRIPTION__"))
+        self.assertTrue(hasattr(about, "__UPLOAD_COMMAND__"))
+        self.assertTrue(hasattr(about, "__UPLOAD_ALIAS__"))
+        self.assertTrue(hasattr(about, "__PLAYLIST_COMMAND__"))
+        self.assertTrue(hasattr(about, "__PLAYLIST_ALIAS__"))
 
     def test_application(self):
         output = self.runcli()
@@ -37,11 +41,6 @@ class CompletionTest(TestHelper, Assertions):
     def test_application_plugin_list(self):
         output = self.runcli("version")
         self.assertIn("plugins: {0}".format(PLUGIN_NAME), output)
-
-#    def test_run_plugin(self):
-#        with capture_log(plg_log_ns) as logs:
-#            self.runcli(PLUGIN_NAME)
-#        self.assertIn("ibroadcast: Please configure your iBroadcast credentials.", "\n".join(logs))
 
     def test_plugin_version(self):
         with capture_log(plg_log_ns) as logs:
