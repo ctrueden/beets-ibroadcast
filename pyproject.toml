@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "beets-ibroadcast"
-version = "0.6.0.dev0"
+version = "0.6.0"
 description = "iBroadcast plugin for beets"
 license = "Unlicense"
 authors = [{name = "Curtis Rueden", email = "curtis@rueden.us"}]
