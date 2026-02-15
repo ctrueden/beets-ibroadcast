@@ -86,7 +86,7 @@ class IBUploadCommand(Subcommand, IBroadcastBase):
             if force:
                 self.plugin._log.info(f'Would force-upload: {item}')
             else:
-                self.plugin._log.info(f'Already uploaded: {item}')
+                self.plugin._log.debug(f'Already uploaded: {item}')
 
     def upload(self, item, force=False):
         if self.ib is None:

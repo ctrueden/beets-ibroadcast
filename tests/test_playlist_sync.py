@@ -361,8 +361,8 @@ class TestThreeWayMerge(TestCase):
 
         manager._upload_playlist(m3u, Path(self.tmpdir), path_to_trackid, state)
 
-        call_args = str(self.plugin._log.info.call_args)
-        self.assertIn('Already synced', call_args)
+        call_args = self.plugin._log.info.call_args
+        self.assertIsNone(call_args)
 
     def test_upload_modified_playlist(self):
         """A locally modified playlist should be synced."""

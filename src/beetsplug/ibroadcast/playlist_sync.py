@@ -256,7 +256,7 @@ class PlaylistSyncManager:
             elif local_trackids != lastsync_trackids:
                 self.plugin._log.info(f"Would upload modified track list for playlist '{plpath}'")
             else:
-                self.plugin._log.info(f"Already synced: '{plpath}'")
+                self.plugin._log.debug(f"Already synced: '{plpath}'")
             return
 
         if playlistid:
