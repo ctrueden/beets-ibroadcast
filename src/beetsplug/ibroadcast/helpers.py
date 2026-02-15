@@ -1,6 +1,7 @@
 # This is free and unencumbered software released into the public domain.
 # See https://unlicense.org/ for details.
 
+import os
 from pathlib import Path
 
 
@@ -10,10 +11,16 @@ def trackid(item):
 
 
 def normpath(path):
-    """Normalize a bytes or str path to a resolved Path object."""
+    """
+    Normalize a bytes or str path to a Path object.
+
+    Uses os.path.normpath (pure string manipulation) rather than
+    Path.resolve() to avoid filesystem syscalls, which are expensive
+    over NFS or other network filesystems.
+    """
     if type(path) == bytes:
         path = path.decode()
-    return Path(str(path)).resolve()
+    return Path(os.path.normpath(str(path)))
 
 
 def assert_type(obj, expected_type):

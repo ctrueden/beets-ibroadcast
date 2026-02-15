@@ -39,15 +39,14 @@ class PlaylistSyncManager:
         :param allow_delete:  If True, propagate deletions.
         :param filters:       Optional list of playlist names to filter by.
         """
-        # Build trackid-to-path index from all library items.
-        trackid_to_path, path_to_trackid = self._build_track_index()
-
         # Discover local M3U playlists.
         playlist_dir, relative_to = self._get_playlist_config()
         if playlist_dir is None:
             return
 
+        self.plugin._log.debug("Discovering local playlists...")
         local_playlists = self._discover_local_playlists(playlist_dir, filters)
+        self.plugin._log.debug(f"Found {len(local_playlists)} local playlist(s).")
 
         # Load state.
         state_path = self._get_state_path()
@@ -60,10 +59,21 @@ class PlaylistSyncManager:
 
         # Run sync operations based on mode.
         if mode in ('upload', 'sync'):
+            # For upload, build path→trackid only for paths in M3U files.
+            self.plugin._log.debug("Collecting track paths from playlists...")
+            all_m3u_paths = self._collect_m3u_paths(local_playlists, relative_to)
+            self.plugin._log.debug(f"Found {len(all_m3u_paths)} unique track path(s) across playlists.")
+            self.plugin._log.debug("Looking up track IDs...")
+            path_to_trackid = self._build_path_to_trackid(all_m3u_paths)
+            self.plugin._log.debug(f"Resolved {len(path_to_trackid)} uploaded track(s).")
             self._upload_playlists(local_playlists, playlist_dir, relative_to,
                                    path_to_trackid, state, allow_delete)
 
         if mode in ('download', 'sync'):
+            # For download, build trackid→path index via SQL.
+            self.plugin._log.debug("Building track ID index for download...")
+            trackid_to_path = self._build_trackid_to_path()
+            self.plugin._log.debug(f"Indexed {len(trackid_to_path)} uploaded track(s).")
             self._download_playlists(playlist_dir, relative_to,
                                      trackid_to_path, state, allow_delete, filters)
 
@@ -71,17 +81,76 @@ class PlaylistSyncManager:
         if not self.pretend:
             self._save_state(state_path, state)
 
-    def _build_track_index(self):
-        """Build bidirectional mappings between track IDs and paths."""
-        trackid_to_path = {}
+    def _collect_m3u_paths(self, local_playlists, relative_to):
+        """Parse all M3U files and collect the set of referenced track paths."""
+        all_paths = set()
+        for plpath in local_playlists:
+            track_prefix = self._resolve_track_prefix(plpath, relative_to)
+            paths = self._parse_m3u(plpath, track_prefix)
+            all_paths.update(paths)
+        return all_paths
+
+    def _build_path_to_trackid(self, paths):
+        """
+        Build a path→trackid mapping for only the given paths.
+
+        Uses a direct SQL query against the flexible attributes table to avoid
+        loading every library item and its flexible attributes.
+        """
+        if not paths:
+            return {}
+
         path_to_trackid = {}
-        for item in self.lib.items():
-            tid = trackid(item)
-            if tid is not None:
-                path = normpath(item.path)
-                trackid_to_path[tid] = path
-                path_to_trackid[path] = tid
-        return trackid_to_path, path_to_trackid
+        # Normalize the target paths for comparison.
+        target_paths = {str(p): p for p in paths}
+
+        # Query the database directly: join items with their ib_trackid attribute.
+        db = self.lib._connection()
+        query = """
+            SELECT items.path, item_attributes.value
+            FROM items
+            INNER JOIN item_attributes ON items.id = item_attributes.entity_id
+            WHERE item_attributes.key = 'ib_trackid'
+              AND item_attributes.value IS NOT NULL
+              AND item_attributes.value != ''
+              AND item_attributes.value != '0'
+        """
+        for row in db.execute(query):
+            item_path = normpath(row[0])
+            if str(item_path) in target_paths:
+                try:
+                    path_to_trackid[item_path] = int(row[1])
+                except (ValueError, TypeError):
+                    pass
+
+        return path_to_trackid
+
+    def _build_trackid_to_path(self):
+        """
+        Build a trackid→path mapping via direct SQL query.
+
+        Much faster than iterating all library items via the ORM, since it
+        avoids loading flexible attributes per-item.
+        """
+        trackid_to_path = {}
+        db = self.lib._connection()
+        query = """
+            SELECT items.path, item_attributes.value
+            FROM items
+            INNER JOIN item_attributes ON items.id = item_attributes.entity_id
+            WHERE item_attributes.key = 'ib_trackid'
+              AND item_attributes.value IS NOT NULL
+              AND item_attributes.value != ''
+              AND item_attributes.value != '0'
+        """
+        for row in db.execute(query):
+            try:
+                tid = int(row[1])
+            except (ValueError, TypeError):
+                continue
+            trackid_to_path[tid] = normpath(row[0])
+
+        return trackid_to_path
 
     def _get_playlist_config(self):
         """Read playlist directory and relative_to from beets config."""
@@ -342,14 +411,12 @@ class PlaylistSyncManager:
         # Check for local changes too.
         if plpath.is_file():
             track_prefix = self._resolve_track_prefix(plpath, relative_to)
-            # Re-read local state to check for local modifications.
+            # Build a reverse lookup from the trackid_to_path dict.
+            path_to_trackid = {v: k for k, v in trackid_to_path.items()}
             local_paths = self._parse_m3u(plpath, track_prefix)
-            local_trackids = []
-            for p in local_paths:
-                for tid, tpath in trackid_to_path.items():
-                    if tpath == p:
-                        local_trackids.append(tid)
-                        break
+            local_trackids = [path_to_trackid.get(p) for p in local_paths]
+            # Filter out None (unresolvable paths).
+            local_trackids = [t for t in local_trackids if t is not None]
 
             if local_trackids != lastsync_trackids:
                 self.plugin._log.warning(
