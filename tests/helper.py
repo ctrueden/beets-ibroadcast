@@ -131,7 +131,6 @@ class TestHelper(TestCase, Assertions):
 
     def reset_beets(self, config_file: bytes):
         self.teardown_beets()
-        plugins._classes = {ibroadcast.IBroadcastPlugin}
         self._setup_beets(config_file)
 
     def _setup_beets(self, config_file: bytes):
@@ -147,7 +146,7 @@ class TestHelper(TestCase, Assertions):
         shutil.copyfile(config_file, self.config.user_config_path())
         self.config.read()
 
-        self.config['plugins'] = []
+        self.config['plugins'] = ['ibroadcast']
         self.config['verbose'] = True
         self.config['ui']['color'] = False
         self.config['threaded'] = False
@@ -161,8 +160,8 @@ class TestHelper(TestCase, Assertions):
 
         self.lib = beets.library.Library(':memory:', self.libdir)
 
-        # This will initialize (create instance) of the plugins
-        plugins.find_plugins()
+        # Load plugins
+        plugins.load_plugins()
 
     def teardown_beets(self):
         self.unload_plugins()
@@ -196,10 +195,11 @@ class TestHelper(TestCase, Assertions):
 
     @staticmethod
     def unload_plugins():
-        for plugin in plugins._classes:
-            plugin.listeners = None
-            plugins._classes = set()
-            plugins._instances = {}
+        # Clear plugin instances
+        for plugin in plugins._instances[:]:
+            if hasattr(plugin, 'listeners'):
+                plugin.listeners = None
+        plugins._instances.clear()
 
     def runcli(self, *args):
         # TODO mock stdin

@@ -1,12 +1,14 @@
 # This is free and unencumbered software released into the public domain.
 # See https://unlicense.org/ for details.
 
+from importlib.metadata import version as _version
+
 __author__ = u'Curtis Rueden'
-__email__ = u'ctrueden@gmail.com'
+__email__ = u'curtis@rueden.us'
 __copyright__ = u'Public domain'
 __license__ = u'License :: OSI Approved :: Unlicense'
 
-__version__ = u'0.5.3.dev0'
+__version__ = _version("beets-ibroadcast")
 __status__ = u'Functional'
 
 __PACKAGE_TITLE__ = u'iBroadcast'

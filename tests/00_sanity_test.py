@@ -2,7 +2,7 @@
 # See https://unlicense.org/ for details.
 
 from beetsplug.ibroadcast import about
-from test.helper import TestHelper, Assertions, \
+from .helper import TestHelper, Assertions, \
     PLUGIN_NAME, PLUGIN_SHORT_DESCRIPTION, PACKAGE_NAME, PACKAGE_TITLE, \
     PLUGIN_VERSION, \
     capture_log

@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=77.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "beets-ibroadcast"
+version = "0.6.0.dev0"
+description = "iBroadcast plugin for beets"
+license = "Unlicense"
+authors = [{name = "Curtis Rueden", email = "curtis@rueden.us"}]
+readme = "README.md"
+keywords = ["beets", "music", "ibroadcast", "collection", "upload"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Topic :: Multimedia :: Sound/Audio",
+]
+
+requires-python = ">=3.8"
+dependencies = [
+    "beets>=1.6.0",
+    "ibroadcast>=2.0.0.dev0",
+    "confuse",
+]
+
+[dependency-groups]
+dev = [
+    "build",
+    "pytest",
+    "pyyaml",
+    "ruff",
+    "six",
+    "validate-pyproject[all]",
+]
+
+[project.urls]
+homepage = "https://github.com/ctrueden/beets-ibroadcast"
+documentation = "https://github.com/ctrueden/beets-ibroadcast/blob/main/README.md"
+source = "https://github.com/ctrueden/beets-ibroadcast"
+download = "https://pypi.org/project/beets-ibroadcast/"
+tracker = "https://github.com/ctrueden/beets-ibroadcast/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+
+[tool.ruff]
+line-length = 88
+src = ["src", "tests"]
+include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
+extend-exclude = ["bin", "build", "dist"]
+
+#[tool.ruff.lint]
+#extend-ignore = ["E203"]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore `F401` (unused import violation) in __init__.py.
+"__init__.py" = ["F401"]
+
+[tool.uv.sources]
+ibroadcast = { path = "../ibroadcast-python", editable = true }
