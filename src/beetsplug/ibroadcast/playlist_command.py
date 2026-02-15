@@ -47,7 +47,7 @@ class IBPlaylistCommand(Subcommand, IBroadcastBase):
         self.parser.add_option(
             '-p', '--pretend',
             action='store_true', dest='pretend', default=False,
-            help=u'report what would happen, but don\'t actually do it'
+            help=u'read-only mode: connect and compare, but make no changes'
         )
 
         super(IBPlaylistCommand, self).__init__(

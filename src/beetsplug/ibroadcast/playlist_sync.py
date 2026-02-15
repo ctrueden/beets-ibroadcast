@@ -52,10 +52,10 @@ class PlaylistSyncManager:
         state_path = self._get_state_path()
         state = self._load_state(state_path)
 
-        # Connect to iBroadcast (unless pretend mode with no need).
-        if not self.pretend:
-            if self.ib_base.ib is None:
-                self.ib_base._connect()
+        # Connect to iBroadcast when needed (pretend mode is read-only, not offline).
+        needs_connection = mode in ('download', 'sync') or not self.pretend
+        if needs_connection and self.ib_base.ib is None:
+            self.ib_base._connect()
 
         # Run sync operations based on mode.
         if mode in ('upload', 'sync'):
@@ -357,10 +357,6 @@ class PlaylistSyncManager:
         """Download iBroadcast playlists to local M3U files."""
         self.plugin._log.info("Syncing playlists (download)")
 
-        if self.pretend and self.ib_base.ib is None:
-            self.plugin._log.info("Would connect to iBroadcast to check remote playlists.")
-            return
-
         # Build reverse map: remote playlist ID → state key.
         id_to_statekey = {}
         for plkey, plstate in state.items():
@@ -425,13 +421,16 @@ class PlaylistSyncManager:
                 return
 
         # Remote changed, local unchanged — update local file.
-        resolved_paths = self._resolve_trackids_to_paths(remote_trackids, trackid_to_path)
-        if resolved_paths is None:
-            unresolved = sum(1 for tid in remote_trackids if tid not in trackid_to_path)
+        resolved_paths, unresolved = self._resolve_trackids_to_paths(remote_trackids, trackid_to_path)
+        if not resolved_paths:
             self.plugin._log.warning(
                 f"Skipping download of playlist '{plname}' (iBroadcast ID {playlistid}): "
-                f"{unresolved} track(s) cannot be resolved to local files.")
+                f"none of {len(remote_trackids)} track(s) can be resolved to local files.")
             return
+        if unresolved:
+            self.plugin._log.warning(
+                f"Playlist '{plname}' (iBroadcast ID {playlistid}): "
+                f"{unresolved} of {len(remote_trackids)} track(s) cannot be resolved to local files.")
 
         if self.pretend:
             self.plugin._log.info(
@@ -457,20 +456,23 @@ class PlaylistSyncManager:
                 f"Skipping download of empty playlist '{plname}' (iBroadcast ID {playlistid}).")
             return
 
-        resolved_paths = self._resolve_trackids_to_paths(remote_trackids, trackid_to_path)
-        if resolved_paths is None:
-            unresolved = sum(1 for tid in remote_trackids if tid not in trackid_to_path)
+        resolved_paths, unresolved = self._resolve_trackids_to_paths(remote_trackids, trackid_to_path)
+        if not resolved_paths:
             self.plugin._log.warning(
                 f"Skipping download of playlist '{plname}' (iBroadcast ID {playlistid}): "
-                f"{unresolved} track(s) cannot be resolved to local files.")
+                f"none of {len(remote_trackids)} track(s) can be resolved to local files.")
             return
+        if unresolved:
+            self.plugin._log.warning(
+                f"Playlist '{plname}' (iBroadcast ID {playlistid}): "
+                f"{unresolved} of {len(remote_trackids)} track(s) cannot be resolved to local files.")
 
         plpath = playlist_dir / f'{plname}.m3u'
 
         if self.pretend:
             self.plugin._log.info(
                 f"Would download playlist '{plname}' to '{plpath}' "
-                f"({len(remote_trackids)} tracks).")
+                f"({len(resolved_paths)} of {len(remote_trackids)} tracks).")
             return
 
         # Avoid overwriting existing files not in our state.
@@ -576,14 +578,19 @@ class PlaylistSyncManager:
         return trackids
 
     def _resolve_trackids_to_paths(self, remote_trackids, trackid_to_path):
-        """Resolve remote track IDs to local paths. Returns None if any are unresolvable."""
+        """Resolve remote track IDs to local paths. Skips unresolvable tracks.
+
+        Returns (resolved_paths, unresolved_count).
+        """
         paths = []
+        unresolved = 0
         for tid in remote_trackids:
             path = trackid_to_path.get(tid)
             if path is None:
-                return None
-            paths.append(path)
-        return paths
+                unresolved += 1
+            else:
+                paths.append(path)
+        return paths, unresolved
 
     def _write_m3u(self, plpath, track_paths, relative_to):
         """Write an M3U file with the given track paths."""

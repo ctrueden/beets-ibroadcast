@@ -301,17 +301,20 @@ class TestTrackidResolution(TestCase):
             100: Path('/music/track1.mp3'),
             200: Path('/music/track2.mp3'),
         }
-        result = self.manager._resolve_trackids_to_paths([100, 200], trackid_to_path)
-        self.assertEqual(result, [Path('/music/track1.mp3'), Path('/music/track2.mp3')])
+        paths, unresolved = self.manager._resolve_trackids_to_paths([100, 200], trackid_to_path)
+        self.assertEqual(paths, [Path('/music/track1.mp3'), Path('/music/track2.mp3')])
+        self.assertEqual(unresolved, 0)
 
     def test_resolve_missing_trackid(self):
         trackid_to_path = {100: Path('/music/track1.mp3')}
-        result = self.manager._resolve_trackids_to_paths([100, 999], trackid_to_path)
-        self.assertIsNone(result)
+        paths, unresolved = self.manager._resolve_trackids_to_paths([100, 999], trackid_to_path)
+        self.assertEqual(paths, [Path('/music/track1.mp3')])
+        self.assertEqual(unresolved, 1)
 
     def test_resolve_empty_list(self):
-        result = self.manager._resolve_trackids_to_paths([], {})
-        self.assertEqual(result, [])
+        paths, unresolved = self.manager._resolve_trackids_to_paths([], {})
+        self.assertEqual(paths, [])
+        self.assertEqual(unresolved, 0)
 
 
 class TestThreeWayMerge(TestCase):
