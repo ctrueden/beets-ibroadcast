@@ -151,7 +151,23 @@ part of a playlist.
 
 **Three-way merge:** The plugin uses a state file to detect whether changes
 occurred locally, remotely, or both. If only one side changed, those changes
-are applied. If both sides changed, the playlist is skipped with a warning.
+are applied. If both sides changed, the plugin attempts a three-way merge:
+
+- **Non-conflicting changes** (e.g., local adds tracks at one position, remote
+  adds different tracks at another) are merged automatically. The merged result
+  is written to the local M3U and pushed to iBroadcast.
+- **Conflicting changes** (e.g., both sides modify the same region differently)
+  produce an M3U file with git-style conflict markers:
+  ```
+  #<<<<<<< local
+  path/to/local_track.mp3
+  #=======
+  path/to/remote_track.mp3
+  #>>>>>>> remote
+  ```
+  The markers are `#`-prefixed so the file remains a valid M3U (players treat
+  `#` lines as comments). Edit the file to resolve the conflicts, then run
+  `ib-playlist` again to upload your resolution.
 
 **Deletion handling:** By default, deletions are not propagated. Pass
 `--delete` to enable deletion propagation. A deletion is only applied if the
