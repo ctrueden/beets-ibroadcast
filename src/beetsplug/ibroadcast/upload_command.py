@@ -6,7 +6,7 @@ from optparse import OptionParser
 from time import time
 
 from beets.library import Library
-from beets.ui import Subcommand, decargs
+from beets.ui import Subcommand
 from beets.util import syspath, displayable_path
 
 from beetsplug.ibroadcast import common
@@ -54,7 +54,7 @@ class IBUploadCommand(Subcommand, IBroadcastBase):
         )
 
     def func(self, lib: Library, opts, args):
-        query = decargs(args)
+        query = args
 
         if opts.version:
             self.show_version_information()
