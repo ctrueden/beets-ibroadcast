@@ -56,6 +56,9 @@ tracker = "https://github.com/ctrueden/beets-ibroadcast/issues"
 package-dir = {"" = "src"}
 include-package-data = false
 
+[tool.setuptools.package-data]
+"beetsplug.ibroadcast" = ["*.yml"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = false
