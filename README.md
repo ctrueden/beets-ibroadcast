@@ -1,5 +1,9 @@
 # beets iBroadcast Plugin
 
+[![License](https://img.shields.io/pypi/l/beets-ibroadcast.svg)](https://github.com/ctrueden/beets-ibroadcast/raw/main/UNLICENSE)
+[![PyPI](https://img.shields.io/pypi/v/beets-ibroadcast.svg)](https://pypi.org/project/beets-ibroadcast)
+[![Python Version](https://img.shields.io/pypi/pyversions/beets-ibroadcast.svg)](https://python.org)
+
 This plugin lets you sync your [beets](https://beets.io) library
 to the [iBroadcast](https://www.ibroadcast.com/) streaming service.
 Supported operations include:
