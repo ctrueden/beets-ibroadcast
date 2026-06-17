@@ -6,12 +6,11 @@ import os
 
 # Get values as: plg_ns['__PLUGIN_NAME__']
 plg_ns = {}
-about_path = os.path.join(os.path.dirname(__file__), u'about.py')
+about_path = os.path.join(os.path.dirname(__file__), "about.py")
 with open(about_path) as about_file:
     exec(about_file.read(), plg_ns)
 
-__logger__ = logging.getLogger('beets.{plg}'.format(
-    plg=plg_ns['__PLUGIN_NAME__']))
+__logger__ = logging.getLogger("beets.{plg}".format(plg=plg_ns["__PLUGIN_NAME__"]))
 
 
 def say(msg, log_only=True, is_error=False):

@@ -11,11 +11,13 @@ from beetsplug.ibroadcast.playlist_command import IBPlaylistCommand
 
 
 class IBroadcastPlugin(BeetsPlugin):
-    _default_plugin_config_file_name_ = 'config_default.yml'
+    _default_plugin_config_file_name_ = "config_default.yml"
 
     def __init__(self):
         super(IBroadcastPlugin, self).__init__()
-        config_file_path = os.path.join(os.path.dirname(__file__), self._default_plugin_config_file_name_)
+        config_file_path = os.path.join(
+            os.path.dirname(__file__), self._default_plugin_config_file_name_
+        )
         source = ConfigSource(load_yaml(config_file_path) or {}, config_file_path)
         self.config.add(source)
 

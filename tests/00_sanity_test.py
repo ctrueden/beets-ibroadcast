@@ -2,17 +2,22 @@
 # See https://unlicense.org/ for details.
 
 from beetsplug.ibroadcast import about
-from .helper import TestHelper, Assertions, \
-    PLUGIN_NAME, PLUGIN_SHORT_DESCRIPTION, PACKAGE_NAME, PACKAGE_TITLE, \
-    PLUGIN_VERSION, \
-    capture_log
+from .helper import (
+    TestHelper,
+    Assertions,
+    PLUGIN_NAME,
+    PLUGIN_SHORT_DESCRIPTION,
+    PACKAGE_NAME,
+    PACKAGE_TITLE,
+    PLUGIN_VERSION,
+    capture_log,
+)
 
-plg_log_ns = 'beets.{}'.format(PLUGIN_NAME)
+plg_log_ns = "beets.{}".format(PLUGIN_NAME)
 
 
 class CompletionTest(TestHelper, Assertions):
-    """Test invocation of the plugin and basic package health.
-    """
+    """Test invocation of the plugin and basic package health."""
 
     def test_about_descriptor_file(self):
         self.assertTrue(hasattr(about, "__author__"))
@@ -47,8 +52,6 @@ class CompletionTest(TestHelper, Assertions):
             self.runcli(PLUGIN_NAME, "--version")
 
         versioninfo = "{pt}({pn}) plugin for Beets: v{ver}".format(
-            pt=PACKAGE_TITLE,
-            pn=PACKAGE_NAME,
-            ver=PLUGIN_VERSION
+            pt=PACKAGE_TITLE, pn=PACKAGE_NAME, ver=PLUGIN_VERSION
         )
         self.assertIn(versioninfo, "\n".join(logs))

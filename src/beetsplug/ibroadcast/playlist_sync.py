@@ -9,12 +9,14 @@ from pathlib import Path
 
 from beets import config
 
-from beetsplug.ibroadcast.helpers import trackid, normpath
+from beetsplug.ibroadcast.helpers import normpath
 
 
 # Default state file path.
-DEFAULT_STATE_DIR = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'beets'
-DEFAULT_STATE_FILE = DEFAULT_STATE_DIR / 'ibroadcast-playlists.json'
+DEFAULT_STATE_DIR = (
+    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "beets"
+)
+DEFAULT_STATE_FILE = DEFAULT_STATE_DIR / "ibroadcast-playlists.json"
 
 
 class PlaylistSyncManager:
@@ -32,7 +34,7 @@ class PlaylistSyncManager:
         self.lib = lib
         self.pretend = pretend
 
-    def sync(self, mode='sync', allow_delete=False, filters=None):
+    def sync(self, mode="sync", allow_delete=False, filters=None):
         """
         Main entry point for playlist syncing.
 
@@ -59,24 +61,35 @@ class PlaylistSyncManager:
             self.ib_base._connect()
 
         # Run sync operations based on mode.
-        if mode in ('upload', 'sync'):
+        if mode in ("upload", "sync"):
             # For upload, build path→trackid only for paths in M3U files.
             self.plugin._log.debug("Collecting track paths from playlists...")
             all_m3u_paths = self._collect_m3u_paths(local_playlists, relative_to)
-            self.plugin._log.debug(f"Found {len(all_m3u_paths)} unique track path(s) across playlists.")
+            self.plugin._log.debug(
+                f"Found {len(all_m3u_paths)} unique track path(s) across playlists."
+            )
             self.plugin._log.debug("Looking up track IDs...")
             path_to_trackid = self._build_path_to_trackid(all_m3u_paths)
-            self.plugin._log.debug(f"Resolved {len(path_to_trackid)} uploaded track(s).")
-            self._upload_playlists(local_playlists, playlist_dir, relative_to,
-                                   path_to_trackid, state, allow_delete)
+            self.plugin._log.debug(
+                f"Resolved {len(path_to_trackid)} uploaded track(s)."
+            )
+            self._upload_playlists(
+                local_playlists,
+                playlist_dir,
+                relative_to,
+                path_to_trackid,
+                state,
+                allow_delete,
+            )
 
-        if mode in ('download', 'sync'):
+        if mode in ("download", "sync"):
             # For download, build trackid→path index via SQL.
             self.plugin._log.debug("Building track ID index for download...")
             trackid_to_path = self._build_trackid_to_path()
             self.plugin._log.debug(f"Indexed {len(trackid_to_path)} uploaded track(s).")
-            self._download_playlists(playlist_dir, relative_to,
-                                     trackid_to_path, state, allow_delete, filters)
+            self._download_playlists(
+                playlist_dir, relative_to, trackid_to_path, state, allow_delete, filters
+            )
 
         # Save state.
         if not self.pretend:
@@ -155,33 +168,41 @@ class PlaylistSyncManager:
 
     def _get_playlist_config(self):
         """Read playlist directory and relative_to from beets config."""
-        if 'playlist' not in config:
-            self.plugin._log.debug("No playlist directory configured; skipping playlist sync.")
+        if "playlist" not in config:
+            self.plugin._log.debug(
+                "No playlist directory configured; skipping playlist sync."
+            )
             return None, None
 
-        plcfg = config['playlist']
+        plcfg = config["playlist"]
 
         # Where to read/write playlist files.
-        playlist_dir = normpath(plcfg['playlist_dir'].get() if 'playlist_dir' in plcfg else '.')
+        playlist_dir = normpath(
+            plcfg["playlist_dir"].get() if "playlist_dir" in plcfg else "."
+        )
         if not playlist_dir.is_dir():
             self.plugin._log.warning(f"Invalid playlist directory: '{playlist_dir}'")
             return None, None
 
         # How to interpret relative paths in M3U files.
-        relative_to = plcfg['relative_to'].get() if 'relative_to' in plcfg else 'library'
-        if relative_to == 'library':
-            relative_to = normpath(config['directory'].get())
-        elif relative_to != 'playlist':
+        relative_to = (
+            plcfg["relative_to"].get() if "relative_to" in plcfg else "library"
+        )
+        if relative_to == "library":
+            relative_to = normpath(config["directory"].get())
+        elif relative_to != "playlist":
             relative_to = normpath(relative_to)
             if not relative_to.is_dir():
-                self.plugin._log.warning(f"Invalid relative_to directory: '{relative_to}'")
+                self.plugin._log.warning(
+                    f"Invalid relative_to directory: '{relative_to}'"
+                )
                 return None, None
 
         return playlist_dir, relative_to
 
     def _discover_local_playlists(self, playlist_dir, filters=None):
         """Find M3U files in the playlist directory."""
-        playlists = sorted(p for p in playlist_dir.rglob('*.m3u') if p.is_file())
+        playlists = sorted(p for p in playlist_dir.rglob("*.m3u") if p.is_file())
         if filters:
             filter_set = {f.lower() for f in filters}
             playlists = [p for p in playlists if p.stem.lower() in filter_set]
@@ -190,16 +211,18 @@ class PlaylistSyncManager:
     def _get_state_path(self):
         """Determine state file path, migrating from old location if needed."""
         # Check for configured path.
-        configured = self.plugin.config['playlist_state'].get()
+        configured = self.plugin.config["playlist_state"].get()
         if configured:
             return Path(configured)
 
         state_path = DEFAULT_STATE_FILE
 
         # Auto-migrate from old location.
-        old_path = Path(config['directory'].get()) / '.ibroadcast-playlists.json'
+        old_path = Path(config["directory"].get()) / ".ibroadcast-playlists.json"
         if old_path.is_file() and not state_path.is_file():
-            self.plugin._log.info(f"Migrating playlist state from '{old_path}' to '{state_path}'")
+            self.plugin._log.info(
+                f"Migrating playlist state from '{old_path}' to '{state_path}'"
+            )
             state_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(old_path), str(state_path))
 
@@ -212,7 +235,9 @@ class PlaylistSyncManager:
                 with open(state_path) as f:
                     return json.load(f)
             except Exception as e:
-                self.plugin._log.error(f"Error parsing playlist state from '{state_path}'.")
+                self.plugin._log.error(
+                    f"Error parsing playlist state from '{state_path}'."
+                )
                 self.ib_base._stack_trace(e)
                 return {}
         return {}
@@ -220,13 +245,20 @@ class PlaylistSyncManager:
     def _save_state(self, state_path, state):
         """Save playlist sync state to disk."""
         state_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(state_path, 'w') as f:
+        with open(state_path, "w") as f:
             json.dump(state, f, indent=2)
 
     ## -- UPLOAD (local → remote) --
 
-    def _upload_playlists(self, local_playlists, playlist_dir, relative_to,
-                          path_to_trackid, state, allow_delete):
+    def _upload_playlists(
+        self,
+        local_playlists,
+        playlist_dir,
+        relative_to,
+        path_to_trackid,
+        state,
+        allow_delete,
+    ):
         """Upload local M3U playlists to iBroadcast."""
         self.plugin._log.info("Syncing playlists (upload)")
 
@@ -241,42 +273,51 @@ class PlaylistSyncManager:
         """Upload a single local playlist to iBroadcast."""
         # Parse M3U and resolve paths to track IDs.
         track_prefix = self._resolve_track_prefix(plpath, relative_to)
-        local_trackids = self._parse_m3u_to_trackids(plpath, track_prefix, path_to_trackid)
+        local_trackids = self._parse_m3u_to_trackids(
+            plpath, track_prefix, path_to_trackid
+        )
         if local_trackids is None:
             return  # Errors were already logged.
 
         plkey = str(plpath)
         playlistid = lastsync_trackids = None
         if plkey in state:
-            playlistid = state[plkey]['id']
-            lastsync_trackids = state[plkey]['tracks']
+            playlistid = state[plkey]["id"]
+            lastsync_trackids = state[plkey]["tracks"]
 
         if self.pretend:
             if not playlistid:
-                self.plugin._log.info(f"Would create and sync new playlist for '{plpath}'")
+                self.plugin._log.info(
+                    f"Would create and sync new playlist for '{plpath}'"
+                )
             elif local_trackids != lastsync_trackids:
                 # Check remote state to give accurate pretend output.
                 ib_playlist = self.ib_base.ib.playlist(playlistid)
-                remote_trackids = ib_playlist.get('tracks') if ib_playlist else None
+                remote_trackids = ib_playlist.get("tracks") if ib_playlist else None
                 if remote_trackids is not None and remote_trackids != lastsync_trackids:
                     if local_trackids == remote_trackids:
                         self.plugin._log.debug(
-                            f"Local and remote agree for '{plpath}'; state is stale.")
+                            f"Local and remote agree for '{plpath}'; state is stale."
+                        )
                     else:
                         segments, has_conflicts = self._merge_trackids(
-                            lastsync_trackids, local_trackids, remote_trackids)
+                            lastsync_trackids, local_trackids, remote_trackids
+                        )
                         if has_conflicts:
                             self.plugin._log.warning(
                                 f"Would write conflicted M3U for playlist '{plpath}' "
-                                f"(iBroadcast ID {playlistid}); manual resolution needed.")
+                                f"(iBroadcast ID {playlistid}); manual resolution needed."
+                            )
                         else:
                             merged = [tid for seg in segments for tid in seg[1]]
                             self.plugin._log.info(
                                 f"Would merge and upload playlist '{plpath}' "
-                                f"(iBroadcast ID {playlistid}): {len(merged)} tracks.")
+                                f"(iBroadcast ID {playlistid}): {len(merged)} tracks."
+                            )
                 else:
                     self.plugin._log.info(
-                        f"Would upload modified track list for playlist '{plpath}'")
+                        f"Would upload modified track list for playlist '{plpath}'"
+                    )
             else:
                 self.plugin._log.debug(f"Already synced: '{plpath}'")
             return
@@ -284,19 +325,22 @@ class PlaylistSyncManager:
         if playlistid:
             # Fetch current remote state.
             ib_playlist = self.ib_base.ib.playlist(playlistid)
-            if ib_playlist is None or 'tracks' not in ib_playlist:
+            if ib_playlist is None or "tracks" not in ib_playlist:
                 self.plugin._log.warning(
                     f"Skipping sync of playlist '{plpath}' (iBroadcast ID {playlistid}) "
-                    "with no remote track list.")
+                    "with no remote track list."
+                )
                 return
-            remote_trackids = ib_playlist['tracks']
+            remote_trackids = ib_playlist["tracks"]
         else:
             # Create new remote playlist.
             playlist_name = plpath.stem
             try:
                 playlistid = self.ib_base.ib.createplaylist(playlist_name)
             except Exception as e:
-                self.plugin._log.error(f"Error creating iBroadcast playlist '{playlist_name}'.")
+                self.plugin._log.error(
+                    f"Error creating iBroadcast playlist '{playlist_name}'."
+                )
                 self.ib_base._stack_trace(e)
                 return
             remote_trackids = None
@@ -310,66 +354,79 @@ class PlaylistSyncManager:
                 # Both sides converged to the same value — just update state.
                 self.plugin._log.debug(
                     f"Local and remote agree for playlist '{plpath}' "
-                    f"(iBroadcast ID {playlistid}); updating state.")
-                state[plkey] = {'id': playlistid, 'tracks': local_trackids}
+                    f"(iBroadcast ID {playlistid}); updating state."
+                )
+                state[plkey] = {"id": playlistid, "tracks": local_trackids}
                 return
             # Both sides changed — attempt three-way merge.
             segments, has_conflicts = self._merge_trackids(
-                lastsync_trackids, local_trackids, remote_trackids)
+                lastsync_trackids, local_trackids, remote_trackids
+            )
 
             if has_conflicts:
                 # Write conflicted M3U; need trackid_to_path for path resolution.
                 trackid_to_path = self._build_trackid_to_path()
-                self._write_conflicted_m3u(plpath, segments, trackid_to_path, relative_to)
-                state[plkey] = {'id': playlistid, 'tracks': remote_trackids}
+                self._write_conflicted_m3u(
+                    plpath, segments, trackid_to_path, relative_to
+                )
+                state[plkey] = {"id": playlistid, "tracks": remote_trackids}
                 self.plugin._log.warning(
                     f"Playlist '{plpath}' (iBroadcast ID {playlistid}) has merge conflicts. "
-                    f"Wrote conflicted M3U to '{plpath}'; resolve manually.")
+                    f"Wrote conflicted M3U to '{plpath}'; resolve manually."
+                )
                 return
 
             # Clean merge.
             merged_trackids = [tid for seg in segments for tid in seg[1]]
             self.plugin._log.info(
                 f"Merging playlist '{plpath}' (iBroadcast ID {playlistid}): "
-                f"{len(merged_trackids)} tracks.")
+                f"{len(merged_trackids)} tracks."
+            )
             try:
                 self.ib_base.ib.settracks(playlistid, merged_trackids)
             except Exception as e:
                 self.plugin._log.error(
-                    f"Error pushing merged playlist {playlistid} to remote.")
+                    f"Error pushing merged playlist {playlistid} to remote."
+                )
                 self.ib_base._stack_trace(e)
                 return
 
             # Write merged M3U locally.
             trackid_to_path = self._build_trackid_to_path()
             resolved_paths, _ = self._resolve_trackids_to_paths(
-                merged_trackids, trackid_to_path)
+                merged_trackids, trackid_to_path
+            )
             self._write_m3u(plpath, resolved_paths, relative_to)
-            state[plkey] = {'id': playlistid, 'tracks': merged_trackids}
+            state[plkey] = {"id": playlistid, "tracks": merged_trackids}
             return
 
         if remote_changes:
             # Remote changed, local didn't — download will handle this.
             self.plugin._log.debug(
                 f"Skipping upload of playlist '{plpath}' (iBroadcast ID {playlistid}) "
-                "with remote-only changes (will be handled by download).")
+                "with remote-only changes (will be handled by download)."
+            )
             return
 
         if local_changes:
             self.plugin._log.info(
-                f"Syncing locally changed playlist '{plpath}' (iBroadcast ID {playlistid}).")
+                f"Syncing locally changed playlist '{plpath}' (iBroadcast ID {playlistid})."
+            )
             try:
                 self.ib_base.ib.settracks(playlistid, local_trackids)
             except Exception as e:
-                self.plugin._log.error(f"Error updating iBroadcast playlist {playlistid}.")
+                self.plugin._log.error(
+                    f"Error updating iBroadcast playlist {playlistid}."
+                )
                 self.ib_base._stack_trace(e)
                 return
         else:
             self.plugin._log.debug(
-                f"Skipping sync of unchanged playlist '{plpath}' (iBroadcast ID {playlistid}).")
+                f"Skipping sync of unchanged playlist '{plpath}' (iBroadcast ID {playlistid})."
+            )
 
         # Update state.
-        state[plkey] = {'id': playlistid, 'tracks': local_trackids}
+        state[plkey] = {"id": playlistid, "tracks": local_trackids}
 
     def _handle_upload_deletions(self, state):
         """Delete remote playlists for locally-deleted M3U files."""
@@ -379,31 +436,36 @@ class PlaylistSyncManager:
             if plpath.is_file():
                 continue  # Local file still exists.
 
-            playlistid = plstate['id']
+            playlistid = plstate["id"]
             if self.pretend:
                 self.plugin._log.info(
                     f"Would delete remote playlist (iBroadcast ID {playlistid}) "
-                    f"for deleted local file '{plpath}'")
+                    f"for deleted local file '{plpath}'"
+                )
                 continue
 
             # Only delete if remote is unchanged since last sync.
             ib_playlist = self.ib_base.ib.playlist(playlistid)
-            if ib_playlist is not None and 'tracks' in ib_playlist:
-                remote_trackids = ib_playlist['tracks']
-                if remote_trackids != plstate['tracks']:
+            if ib_playlist is not None and "tracks" in ib_playlist:
+                remote_trackids = ib_playlist["tracks"]
+                if remote_trackids != plstate["tracks"]:
                     self.plugin._log.warning(
                         f"Not deleting remote playlist (iBroadcast ID {playlistid}) "
-                        f"for deleted local file '{plpath}' because remote was modified.")
+                        f"for deleted local file '{plpath}' because remote was modified."
+                    )
                     continue
 
             self.plugin._log.info(
                 f"Deleting remote playlist (iBroadcast ID {playlistid}) "
-                f"for deleted local file '{plpath}'.")
+                f"for deleted local file '{plpath}'."
+            )
             try:
                 self.ib_base.ib.deleteplaylist(playlistid)
                 keys_to_remove.append(plkey)
             except Exception as e:
-                self.plugin._log.error(f"Error deleting iBroadcast playlist {playlistid}.")
+                self.plugin._log.error(
+                    f"Error deleting iBroadcast playlist {playlistid}."
+                )
                 self.ib_base._stack_trace(e)
 
         for key in keys_to_remove:
@@ -411,18 +473,26 @@ class PlaylistSyncManager:
 
     ## -- DOWNLOAD (remote → local) --
 
-    def _download_playlists(self, playlist_dir, relative_to,
-                            trackid_to_path, state, allow_delete, filters=None):
+    def _download_playlists(
+        self,
+        playlist_dir,
+        relative_to,
+        trackid_to_path,
+        state,
+        allow_delete,
+        filters=None,
+    ):
         """Download iBroadcast playlists to local M3U files."""
         self.plugin._log.info("Syncing playlists (download)")
 
         # Build reverse map: remote playlist ID → state key.
         id_to_statekey = {}
         for plkey, plstate in state.items():
-            pid = plstate['id']
+            pid = plstate["id"]
             if pid in id_to_statekey:
                 self.plugin._log.warning(
-                    f"Playlist ID {pid} is linked to multiple local files; skipping download.")
+                    f"Playlist ID {pid} is linked to multiple local files; skipping download."
+                )
             else:
                 id_to_statekey[pid] = plkey
 
@@ -430,9 +500,9 @@ class PlaylistSyncManager:
         child_to_folder = {}
         folder_names = {}  # folder_name_lower → set of child playlist IDs
         for playlistid_str, pldata in self.ib_base.ib.playlists.items():
-            if pldata.get('type') == 'folder':
-                folder_name = pldata['name']
-                child_ids = set(pldata.get('tracks', []))
+            if pldata.get("type") == "folder":
+                folder_name = pldata["name"]
+                child_ids = set(pldata.get("tracks", []))
                 for child_id in child_ids:
                     child_to_folder[child_id] = folder_name
                 folder_names[folder_name.lower()] = child_ids
@@ -449,19 +519,21 @@ class PlaylistSyncManager:
         for playlistid_str in self.ib_base.ib.playlists:
             playlistid = int(playlistid_str)
             pldata = self.ib_base.ib.playlists[playlistid_str]
-            plname = pldata['name']
-            pltype = pldata.get('type')
+            plname = pldata["name"]
+            pltype = pldata.get("type")
 
             # Skip system playlists.
-            if pltype is not None and pltype != 'folder':
+            if pltype is not None and pltype != "folder":
                 self.plugin._log.debug(
-                    f"Skipping system playlist '{plname}' (type: {pltype}).")
+                    f"Skipping system playlist '{plname}' (type: {pltype})."
+                )
                 continue
 
             # Skip folder entries themselves.
-            if pltype == 'folder':
+            if pltype == "folder":
                 self.plugin._log.debug(
-                    f"Skipping folder '{plname}' (contains child playlists).")
+                    f"Skipping folder '{plname}' (contains child playlists)."
+                )
                 continue
 
             # Apply name filters (with folder expansion).
@@ -476,28 +548,40 @@ class PlaylistSyncManager:
             if playlistid in id_to_statekey:
                 # Linked playlist — check for remote changes.
                 self._download_linked_playlist(
-                    playlistid, plname, id_to_statekey[playlistid],
-                    relative_to, trackid_to_path, state)
+                    playlistid,
+                    plname,
+                    id_to_statekey[playlistid],
+                    relative_to,
+                    trackid_to_path,
+                    state,
+                )
             else:
                 # New remote playlist — download it.
                 self._download_new_playlist(
-                    playlistid, plname, playlist_dir, relative_to,
-                    trackid_to_path, state, folder_name=folder_name)
+                    playlistid,
+                    plname,
+                    playlist_dir,
+                    relative_to,
+                    trackid_to_path,
+                    state,
+                    folder_name=folder_name,
+                )
 
         # Handle deletion of remotely-deleted playlists.
         if allow_delete:
             self._handle_download_deletions(state, id_to_statekey)
 
-    def _download_linked_playlist(self, playlistid, plname, statekey,
-                                  relative_to, trackid_to_path, state):
+    def _download_linked_playlist(
+        self, playlistid, plname, statekey, relative_to, trackid_to_path, state
+    ):
         """Update a locally-linked playlist with remote changes."""
         plpath = Path(statekey)
-        lastsync_trackids = state[statekey]['tracks']
+        lastsync_trackids = state[statekey]["tracks"]
 
         ib_playlist = self.ib_base.ib.playlist(playlistid)
-        if ib_playlist is None or 'tracks' not in ib_playlist:
+        if ib_playlist is None or "tracks" not in ib_playlist:
             return
-        remote_trackids = ib_playlist['tracks']
+        remote_trackids = ib_playlist["tracks"]
 
         if remote_trackids == lastsync_trackids:
             return  # No remote changes.
@@ -505,7 +589,8 @@ class PlaylistSyncManager:
         self.plugin._log.debug(
             f"Playlist '{plname}' (ID {playlistid}): "
             f"remote has {len(remote_trackids)} tracks, "
-            f"state has {len(lastsync_trackids)} tracks.")
+            f"state has {len(lastsync_trackids)} tracks."
+        )
 
         # Check for local changes too.
         if plpath.is_file():
@@ -522,39 +607,47 @@ class PlaylistSyncManager:
                 self.plugin._log.debug(
                     f"Playlist '{plname}': {len(unresolved)} local track(s) "
                     f"cannot be resolved to track IDs:\n"
-                    + '\n'.join(f"  {p}" for p in unresolved))
+                    + "\n".join(f"  {p}" for p in unresolved)
+                )
 
             self.plugin._log.debug(
                 f"Playlist '{plname}': local has {len(local_trackids)} "
-                f"resolvable tracks (of {len(local_paths)} in M3U).")
+                f"resolvable tracks (of {len(local_paths)} in M3U)."
+            )
 
             if local_trackids != lastsync_trackids:
                 if local_trackids == remote_trackids:
                     # Both sides converged — just update state.
                     self.plugin._log.debug(
                         f"Local and remote agree for playlist '{plname}' "
-                        f"(iBroadcast ID {playlistid}); updating state.")
+                        f"(iBroadcast ID {playlistid}); updating state."
+                    )
                     if not self.pretend:
-                        state[statekey] = {'id': playlistid, 'tracks': remote_trackids}
+                        state[statekey] = {"id": playlistid, "tracks": remote_trackids}
                     return
 
                 # Both sides changed — attempt three-way merge.
                 segments, has_conflicts = self._merge_trackids(
-                    lastsync_trackids, local_trackids, remote_trackids)
+                    lastsync_trackids, local_trackids, remote_trackids
+                )
 
                 if has_conflicts:
                     if self.pretend:
                         self.plugin._log.warning(
                             f"Would write conflicted M3U for playlist '{plname}' "
-                            f"(iBroadcast ID {playlistid}); manual resolution needed.")
+                            f"(iBroadcast ID {playlistid}); manual resolution needed."
+                        )
                         return
-                    self._write_conflicted_m3u(plpath, segments, trackid_to_path, relative_to)
+                    self._write_conflicted_m3u(
+                        plpath, segments, trackid_to_path, relative_to
+                    )
                     # Update state to remote so that after manual resolution,
                     # the next sync sees a local-only change and uploads cleanly.
-                    state[statekey] = {'id': playlistid, 'tracks': remote_trackids}
+                    state[statekey] = {"id": playlistid, "tracks": remote_trackids}
                     self.plugin._log.warning(
                         f"Playlist '{plname}' (iBroadcast ID {playlistid}) has merge conflicts. "
-                        f"Wrote conflicted M3U to '{plpath}'; resolve manually.")
+                        f"Wrote conflicted M3U to '{plpath}'; resolve manually."
+                    )
                     return
 
                 # Clean merge — collect the merged track IDs.
@@ -565,12 +658,14 @@ class PlaylistSyncManager:
                 if self.pretend:
                     self.plugin._log.info(
                         f"Would merge playlist '{plname}' (iBroadcast ID {playlistid}): "
-                        f"{len(merged_trackids)} tracks after merge.")
+                        f"{len(merged_trackids)} tracks after merge."
+                    )
                     return
 
                 # Write merged M3U locally.
                 resolved_paths, unresolved = self._resolve_trackids_to_paths(
-                    merged_trackids, trackid_to_path)
+                    merged_trackids, trackid_to_path
+                )
                 self._write_m3u(plpath, resolved_paths, relative_to)
 
                 # Push merged result to remote.
@@ -578,87 +673,110 @@ class PlaylistSyncManager:
                     self.ib_base.ib.settracks(playlistid, merged_trackids)
                 except Exception as e:
                     self.plugin._log.error(
-                        f"Error pushing merged playlist {playlistid} to remote.")
+                        f"Error pushing merged playlist {playlistid} to remote."
+                    )
                     self.ib_base._stack_trace(e)
                     return
 
-                state[statekey] = {'id': playlistid, 'tracks': merged_trackids}
+                state[statekey] = {"id": playlistid, "tracks": merged_trackids}
                 self.plugin._log.info(
                     f"Merged playlist '{plname}' (iBroadcast ID {playlistid}): "
-                    f"{len(merged_trackids)} tracks.")
+                    f"{len(merged_trackids)} tracks."
+                )
                 return
 
         # Remote changed, local unchanged — update local file.
-        resolved_paths, unresolved = self._resolve_trackids_to_paths(remote_trackids, trackid_to_path)
+        resolved_paths, unresolved = self._resolve_trackids_to_paths(
+            remote_trackids, trackid_to_path
+        )
         if not resolved_paths:
             self.plugin._log.warning(
                 f"Skipping download of playlist '{plname}' (iBroadcast ID {playlistid}): "
-                f"none of {len(remote_trackids)} track(s) can be resolved to local files.")
+                f"none of {len(remote_trackids)} track(s) can be resolved to local files."
+            )
             return
         if unresolved:
             self.plugin._log.warning(
                 f"Playlist '{plname}' (iBroadcast ID {playlistid}): "
-                f"{unresolved} of {len(remote_trackids)} track(s) cannot be resolved to local files.")
+                f"{unresolved} of {len(remote_trackids)} track(s) cannot be resolved to local files."
+            )
 
         if self.pretend:
             self.plugin._log.info(
-                f"Would update local playlist '{plpath}' with remote changes.")
+                f"Would update local playlist '{plpath}' with remote changes."
+            )
             return
 
         self._write_m3u(plpath, resolved_paths, relative_to)
-        state[statekey] = {'id': playlistid, 'tracks': remote_trackids}
+        state[statekey] = {"id": playlistid, "tracks": remote_trackids}
         self.plugin._log.info(
             f"Updated local playlist '{plpath}' with remote changes "
-            f"(iBroadcast ID {playlistid}).")
+            f"(iBroadcast ID {playlistid})."
+        )
 
-    def _download_new_playlist(self, playlistid, plname, playlist_dir,
-                               relative_to, trackid_to_path, state,
-                               folder_name=None):
+    def _download_new_playlist(
+        self,
+        playlistid,
+        plname,
+        playlist_dir,
+        relative_to,
+        trackid_to_path,
+        state,
+        folder_name=None,
+    ):
         """Download a new remote playlist to a local M3U file."""
         ib_playlist = self.ib_base.ib.playlist(playlistid)
-        if ib_playlist is None or 'tracks' not in ib_playlist:
+        if ib_playlist is None or "tracks" not in ib_playlist:
             return
-        remote_trackids = ib_playlist['tracks']
+        remote_trackids = ib_playlist["tracks"]
 
         if not remote_trackids:
             self.plugin._log.debug(
-                f"Skipping download of empty playlist '{plname}' (iBroadcast ID {playlistid}).")
+                f"Skipping download of empty playlist '{plname}' (iBroadcast ID {playlistid})."
+            )
             return
 
-        resolved_paths, unresolved = self._resolve_trackids_to_paths(remote_trackids, trackid_to_path)
+        resolved_paths, unresolved = self._resolve_trackids_to_paths(
+            remote_trackids, trackid_to_path
+        )
         if not resolved_paths:
             self.plugin._log.warning(
                 f"Skipping download of playlist '{plname}' (iBroadcast ID {playlistid}): "
-                f"none of {len(remote_trackids)} track(s) can be resolved to local files.")
+                f"none of {len(remote_trackids)} track(s) can be resolved to local files."
+            )
             return
         if unresolved:
             self.plugin._log.warning(
                 f"Playlist '{plname}' (iBroadcast ID {playlistid}): "
-                f"{unresolved} of {len(remote_trackids)} track(s) cannot be resolved to local files.")
+                f"{unresolved} of {len(remote_trackids)} track(s) cannot be resolved to local files."
+            )
 
         if folder_name:
-            plpath = playlist_dir / folder_name / f'{plname}.m3u'
+            plpath = playlist_dir / folder_name / f"{plname}.m3u"
         else:
-            plpath = playlist_dir / f'{plname}.m3u'
+            plpath = playlist_dir / f"{plname}.m3u"
 
         if self.pretend:
             self.plugin._log.info(
                 f"Would download playlist '{plname}' to '{plpath}' "
-                f"({len(resolved_paths)} of {len(remote_trackids)} tracks).")
+                f"({len(resolved_paths)} of {len(remote_trackids)} tracks)."
+            )
             return
 
         # Avoid overwriting existing files not in our state.
         if plpath.is_file():
             self.plugin._log.warning(
                 f"Skipping download of playlist '{plname}': "
-                f"local file '{plpath}' already exists.")
+                f"local file '{plpath}' already exists."
+            )
             return
 
         self._write_m3u(plpath, resolved_paths, relative_to)
-        state[str(plpath)] = {'id': playlistid, 'tracks': remote_trackids}
+        state[str(plpath)] = {"id": playlistid, "tracks": remote_trackids}
         self.plugin._log.info(
             f"Downloaded playlist '{plname}' to '{plpath}' "
-            f"({len(remote_trackids)} tracks).")
+            f"({len(remote_trackids)} tracks)."
+        )
 
     def _handle_download_deletions(self, state, id_to_statekey):
         """Delete local M3U files for remotely-deleted playlists."""
@@ -668,7 +786,7 @@ class PlaylistSyncManager:
 
         keys_to_remove = []
         for plkey, plstate in state.items():
-            pid = plstate['id']
+            pid = plstate["id"]
             if pid in remote_ids:
                 continue  # Remote playlist still exists.
 
@@ -682,18 +800,21 @@ class PlaylistSyncManager:
             if self._local_playlist_changed(plpath, plstate, state):
                 self.plugin._log.warning(
                     f"Not deleting local playlist '{plpath}' for remotely-deleted playlist "
-                    f"(ID {pid}) because local file was modified.")
+                    f"(ID {pid}) because local file was modified."
+                )
                 continue
 
             if self.pretend:
                 self.plugin._log.info(
                     f"Would delete local playlist '{plpath}' "
-                    f"for remotely-deleted playlist (ID {pid}).")
+                    f"for remotely-deleted playlist (ID {pid})."
+                )
                 continue
 
             self.plugin._log.info(
                 f"Deleting local playlist '{plpath}' "
-                f"for remotely-deleted playlist (ID {pid}).")
+                f"for remotely-deleted playlist (ID {pid})."
+            )
             plpath.unlink()
             keys_to_remove.append(plkey)
 
@@ -755,27 +876,27 @@ class PlaylistSyncManager:
             if not local_changed and not remote_changed:
                 # Neither side changed — keep base (which may be empty).
                 if base_gap:
-                    segments.append(('clean', list(base_gap)))
+                    segments.append(("clean", list(base_gap)))
             elif local_changed and not remote_changed:
                 # Only local changed — take local.
                 if local_gap:
-                    segments.append(('clean', list(local_gap)))
+                    segments.append(("clean", list(local_gap)))
             elif remote_changed and not local_changed:
                 # Only remote changed — take remote.
                 if remote_gap:
-                    segments.append(('clean', list(remote_gap)))
+                    segments.append(("clean", list(remote_gap)))
             else:
                 # Both changed.
                 if local_gap == remote_gap:
                     # Same change — take either.
                     if local_gap:
-                        segments.append(('clean', list(local_gap)))
+                        segments.append(("clean", list(local_gap)))
                 elif not base_gap:
                     # Both sides inserted into the same empty region —
                     # concatenate local additions first, then remote.
-                    segments.append(('clean', list(local_gap) + list(remote_gap)))
+                    segments.append(("clean", list(local_gap) + list(remote_gap)))
                 else:
-                    segments.append(('conflict', list(local_gap), list(remote_gap)))
+                    segments.append(("conflict", list(local_gap), list(remote_gap)))
                     return True
             return False
 
@@ -797,7 +918,7 @@ class PlaylistSyncManager:
                 has_conflicts = True
 
             # Emit the sync point itself.
-            segments.append(('clean', [base[bi]]))
+            segments.append(("clean", [base[bi]]))
 
             base_pos = bi + 1
             local_pos = li + 1
@@ -814,8 +935,8 @@ class PlaylistSyncManager:
         # Coalesce adjacent clean segments.
         coalesced = []
         for seg in segments:
-            if seg[0] == 'clean' and coalesced and coalesced[-1][0] == 'clean':
-                coalesced[-1] = ('clean', coalesced[-1][1] + seg[1])
+            if seg[0] == "clean" and coalesced and coalesced[-1][0] == "clean":
+                coalesced[-1] = ("clean", coalesced[-1][1] + seg[1])
             else:
                 coalesced.append(seg)
 
@@ -829,35 +950,35 @@ class PlaylistSyncManager:
         def _path_line(tid):
             path = trackid_to_path.get(tid)
             if path is None:
-                return f'# unresolved track {tid}'
+                return f"# unresolved track {tid}"
             try:
                 return str(path.relative_to(base_dir))
             except ValueError:
                 return str(path)
 
         for seg in segments:
-            if seg[0] == 'clean':
+            if seg[0] == "clean":
                 for tid in seg[1]:
                     lines.append(_path_line(tid))
             else:
                 _, local_tids, remote_tids = seg
-                lines.append('#<<<<<<< local')
+                lines.append("#<<<<<<< local")
                 for tid in local_tids:
                     lines.append(_path_line(tid))
-                lines.append('#=======')
+                lines.append("#=======")
                 for tid in remote_tids:
                     lines.append(_path_line(tid))
-                lines.append('#>>>>>>> remote')
+                lines.append("#>>>>>>> remote")
 
         plpath.parent.mkdir(parents=True, exist_ok=True)
-        with open(plpath, 'w') as f:
-            f.write('\n'.join(lines) + '\n')
+        with open(plpath, "w") as f:
+            f.write("\n".join(lines) + "\n")
 
     ## -- M3U UTILITIES --
 
     def _resolve_track_prefix(self, plpath, relative_to):
         """Determine the base directory for resolving relative paths in an M3U."""
-        if relative_to == 'playlist':
+        if relative_to == "playlist":
             return normpath(plpath.parent)
         return normpath(relative_to)
 
@@ -865,8 +986,11 @@ class PlaylistSyncManager:
         """Parse an M3U file and return resolved track paths."""
         with open(plpath) as pl:
             lines = [line.strip() for line in pl.readlines()]
-        return [normpath(track_prefix / line)
-                for line in lines if len(line) > 0 and not line.startswith('#')]
+        return [
+            normpath(track_prefix / line)
+            for line in lines
+            if len(line) > 0 and not line.startswith("#")
+        ]
 
     def _parse_m3u_to_trackids(self, plpath, track_prefix, path_to_trackid):
         """Parse an M3U file and return track IDs, or None on failure."""
@@ -890,7 +1014,8 @@ class PlaylistSyncManager:
         if len(trackids) < len(track_paths):
             self.plugin._log.debug(
                 f"Skipping sync of playlist '{plpath}' with track problems:\n"
-                + '\n'.join(problems))
+                + "\n".join(problems)
+            )
             return None
 
         return trackids
@@ -922,5 +1047,5 @@ class PlaylistSyncManager:
                 # Can't make relative — use absolute path.
                 lines.append(str(track_path))
         plpath.parent.mkdir(parents=True, exist_ok=True)
-        with open(plpath, 'w') as f:
-            f.write('\n'.join(lines) + '\n')
+        with open(plpath, "w") as f:
+            f.write("\n".join(lines) + "\n")

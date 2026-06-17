@@ -11,9 +11,13 @@ from ibroadcast import from_device_code, iBroadcast, oauth
 from beetsplug.ibroadcast import common
 
 
-CLIENT_ID = '9f66b85509db11f1b9ffb49691aa2236'
-SCOPES = ['user.library:read', 'user.library:write', 'user.upload']
-TOKEN_FILE = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'beets' / 'ibroadcast-tokens.json'
+CLIENT_ID = "9f66b85509db11f1b9ffb49691aa2236"
+SCOPES = ["user.library:read", "user.library:write", "user.upload"]
+TOKEN_FILE = (
+    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    / "beets"
+    / "ibroadcast-tokens.json"
+)
 
 
 def _load_tokens():
@@ -27,7 +31,7 @@ def _load_tokens():
 def _save_tokens(token_set):
     """Save tokens to disk with restrictive permissions."""
     TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(TOKEN_FILE, 'w') as f:
+    with open(TOKEN_FILE, "w") as f:
         json.dump(token_set.to_dict(), f, indent=2)
     os.chmod(TOKEN_FILE, 0o600)
 
@@ -40,8 +44,8 @@ class IBroadcastBase:
     tags = None
 
     def _connect(self):
-        self.plugin._log.debug('Connecting to iBroadcast')
-        version = common.plg_ns['__version__']
+        self.plugin._log.debug("Connecting to iBroadcast")
+        version = common.plg_ns["__version__"]
 
         # Try loading saved tokens first.
         tokens = _load_tokens()
@@ -60,7 +64,7 @@ class IBroadcastBase:
                     refresh_token=tokens.refresh_token,
                     client_id=CLIENT_ID,
                     token_refreshed_callback=_save_tokens,
-                    client='beets-ibroadcast',
+                    client="beets-ibroadcast",
                     version=version,
                 )
                 self.ib.refresh()
@@ -73,7 +77,7 @@ class IBroadcastBase:
             scopes=SCOPES,
             on_device_code=self._prompt_device_code,
             token_refreshed_callback=_save_tokens,
-            client='beets-ibroadcast',
+            client="beets-ibroadcast",
             version=version,
         )
         _save_tokens(self.ib.token_set)
@@ -85,15 +89,21 @@ class IBroadcastBase:
         self.tags = {}
         for tagid, tag in self.ib.tags.items():
             tagcopy = tag.copy()
-            tagname = tagcopy.pop('name')
-            tagcopy['id'] = tagid
+            tagname = tagcopy.pop("name")
+            tagcopy["id"] = tagid
             if tagname in self.tags:
-                self.plugin._log.warning(f"Ignoring duplicate tag '{tagname}' with ID {tagid}.")
+                self.plugin._log.warning(
+                    f"Ignoring duplicate tag '{tagname}' with ID {tagid}."
+                )
             else:
                 self.tags[tagname] = tagcopy
 
-    def _prompt_device_code(self, user_code, verification_uri, verification_uri_complete):
-        self.plugin._log.info(f"To authorize beets-ibroadcast, visit: {verification_uri}")
+    def _prompt_device_code(
+        self, user_code, verification_uri, verification_uri_complete
+    ):
+        self.plugin._log.info(
+            f"To authorize beets-ibroadcast, visit: {verification_uri}"
+        )
         self.plugin._log.info(f"And enter code: {user_code}")
         if verification_uri_complete:
             self.plugin._log.info(f"Or visit: {verification_uri_complete}")

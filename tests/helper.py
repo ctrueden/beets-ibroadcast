@@ -15,7 +15,6 @@ from beets import logging
 from beets import plugins
 from beets import ui
 from beets import util
-from beets.library import Item
 from beets.util import (
     syspath,
     bytestring_path,
@@ -24,21 +23,19 @@ from beets.util import (
 from confuse import Subview, Dumper
 from six import StringIO
 
-from beetsplug import ibroadcast
 from beetsplug.ibroadcast import common
 
-logging.getLogger('beets').propagate = True
+logging.getLogger("beets").propagate = True
 
 # Values
-PLUGIN_NAME = common.plg_ns['__PLUGIN_NAME__']
-PLUGIN_SHORT_DESCRIPTION = common.plg_ns['__PLUGIN_SHORT_DESCRIPTION__']
-PLUGIN_VERSION = common.plg_ns['__version__']
-PACKAGE_NAME = common.plg_ns['__PACKAGE_NAME__']
-PACKAGE_TITLE = common.plg_ns['__PACKAGE_TITLE__']
+PLUGIN_NAME = common.plg_ns["__PLUGIN_NAME__"]
+PLUGIN_SHORT_DESCRIPTION = common.plg_ns["__PLUGIN_SHORT_DESCRIPTION__"]
+PLUGIN_VERSION = common.plg_ns["__version__"]
+PACKAGE_NAME = common.plg_ns["__PACKAGE_NAME__"]
+PACKAGE_TITLE = common.plg_ns["__PACKAGE_TITLE__"]
 
 
 class LogCapture(logging.Handler):
-
     def __init__(self):
         super(LogCapture, self).__init__()
         self.messages = []
@@ -48,7 +45,7 @@ class LogCapture(logging.Handler):
 
 
 @contextmanager
-def capture_log(logger='beets', suppress_output=True):
+def capture_log(logger="beets", suppress_output=True):
     capture = LogCapture()
     log = logging.getLogger(logger)
     log.propagate = True
@@ -97,8 +94,7 @@ def control_stdin(userinput=None):
 
 
 def _convert_args(args):
-    """Convert args to strings
-    """
+    """Convert args to strings"""
     for i, elem in enumerate(args):
         if isinstance(elem, bytes):
             args[i] = elem.decode(util.arg_encoding())
@@ -108,16 +104,19 @@ def _convert_args(args):
 
 class Assertions(object):
     def assertIsFile(self: TestCase, path):
-        self.assertTrue(os.path.isfile(syspath(path)),
-                        msg=u'Path is not a file: {0}'.format(
-                            displayable_path(path)))
+        self.assertTrue(
+            os.path.isfile(syspath(path)),
+            msg="Path is not a file: {0}".format(displayable_path(path)),
+        )
 
 
 class TestHelper(TestCase, Assertions):
-    _test_config_dir_ = os.path.join(bytestring_path(os.path.dirname(__file__)),
-                                     b'config')
-    _test_fixture_dir = os.path.join(bytestring_path(os.path.dirname(__file__)),
-                                     b'fixtures')
+    _test_config_dir_ = os.path.join(
+        bytestring_path(os.path.dirname(__file__)), b"config"
+    )
+    _test_fixture_dir = os.path.join(
+        bytestring_path(os.path.dirname(__file__)), b"fixtures"
+    )
     _test_target_dir = bytestring_path("/tmp/beets-autofix")
 
     def setUp(self):
@@ -135,30 +134,29 @@ class TestHelper(TestCase, Assertions):
 
     def _setup_beets(self, config_file: bytes):
         self.addCleanup(self.teardown_beets)
-        os.environ['BEETSDIR'] = self.mkdtemp()
+        os.environ["BEETSDIR"] = self.mkdtemp()
 
         self.config = beets.config
         self.config.clear()
 
         # add user configuration
-        config_file = format(
-            os.path.join(self._test_config_dir_, config_file).decode())
+        config_file = format(os.path.join(self._test_config_dir_, config_file).decode())
         shutil.copyfile(config_file, self.config.user_config_path())
         self.config.read()
 
-        self.config['plugins'] = ['ibroadcast']
-        self.config['verbose'] = True
-        self.config['ui']['color'] = False
-        self.config['threaded'] = False
-        self.config['import']['copy'] = False
+        self.config["plugins"] = ["ibroadcast"]
+        self.config["verbose"] = True
+        self.config["ui"]["color"] = False
+        self.config["threaded"] = False
+        self.config["import"]["copy"] = False
 
         os.makedirs(self._test_target_dir, exist_ok=True)
 
         libdir = self.mkdtemp()
-        self.config['directory'] = libdir
+        self.config["directory"] = libdir
         self.libdir = bytestring_path(libdir)
 
-        self.lib = beets.library.Library(':memory:', self.libdir)
+        self.lib = beets.library.Library(":memory:", self.libdir)
 
         # Load plugins
         plugins.load_plugins()
@@ -168,20 +166,20 @@ class TestHelper(TestCase, Assertions):
 
         shutil.rmtree(self._test_target_dir, ignore_errors=True)
 
-        if hasattr(self, '_tempdirs'):
+        if hasattr(self, "_tempdirs"):
             for tempdir in self._tempdirs:
                 if os.path.exists(tempdir):
                     shutil.rmtree(syspath(tempdir), ignore_errors=True)
         self._tempdirs = []
 
-        if hasattr(self, 'lib'):
-            if hasattr(self.lib, '_connections'):
+        if hasattr(self, "lib"):
+            if hasattr(self.lib, "_connections"):
                 del self.lib._connections
 
-        if 'BEETSDIR' in os.environ:
-            del os.environ['BEETSDIR']
+        if "BEETSDIR" in os.environ:
+            del os.environ["BEETSDIR"]
 
-        if hasattr(self, 'config'):
+        if hasattr(self, "config"):
             self.config.clear()
 
         # beets.config.read(user=False, defaults=True)
@@ -197,7 +195,7 @@ class TestHelper(TestCase, Assertions):
     def unload_plugins():
         # Clear plugin instances
         for plugin in plugins._instances[:]:
-            if hasattr(plugin, 'listeners'):
+            if hasattr(plugin, "listeners"):
                 plugin.listeners = None
         plugins._instances.clear()
 
@@ -212,12 +210,14 @@ class TestHelper(TestCase, Assertions):
         return out.getvalue()
 
     def lib_path(self, path):
-        return os.path.join(self.libdir,
-                            path.replace(b'/', bytestring_path(os.sep)))
+        return os.path.join(self.libdir, path.replace(b"/", bytestring_path(os.sep)))
 
     @staticmethod
     def _dump_config(cfg: Subview):
         # print(json.dumps(cfg.get(), indent=4, sort_keys=False))
         flat = cfg.flatten()
-        print(yaml.dump(flat, Dumper=Dumper, default_flow_style=None, indent=2,
-                        width=1000))
+        print(
+            yaml.dump(
+                flat, Dumper=Dumper, default_flow_style=None, indent=2, width=1000
+            )
+        )
